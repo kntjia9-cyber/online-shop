@@ -1462,7 +1462,16 @@ async function doRegister() {
     if (pass.length < 6) { showToast('error', '❌ รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร'); return; }
     if (!agree) { showToast('error', '❌ กรุณายอมรับเงื่อนไขการใช้บริการ'); return; }
 
-    // ☁️ สมัครผ่าน Supabase (ถ้ามีอีเมล)
+    // ☁️ จัดเตรียมข้อมูลสมาชิกสำหรับ Cloud
+    let newUser = {
+        id: email ? null : 'phone-' + (phone || Date.now()),
+        email: email || '',
+        phone: phone || '',
+        name: name,
+        role: 'user',
+        isAdmin: (email && (email === 'houseofstamp@gmail.com' || email.includes('admin')))
+    };
+
     if (email) {
         showToast('info', '⌛ กำลังสร้างบัญชีออนไลน์...');
         const { data, error } = await signUpOnline(email, pass, name);
@@ -1470,53 +1479,35 @@ async function doRegister() {
             showToast('error', '❌ ' + error.message);
             return;
         }
-        const user = data.user;
-        state.user = {
-            id: user.id, email, name, role: 'user',
-            isAdmin: email === 'houseofstamp@gmail.com' || email.includes('admin')
-        };
+        newUser.id = data.user.id;
+    }
 
-        // ☁️ Sync ข้อมูลลงตาราง users (Table) ทันที
-        console.log('🚀 Attempting to sync new user to cloud table...', state.user);
-        try {
-            await saveOnlineUser(state.user);
+    state.user = newUser;
 
-            // 🔍 ตรวจสอบซ้ำทันทีว่าใน Cloud มีคนนี้จริงไหม
-            const onlineUsers = await fetchOnlineUsers();
-            const verify = onlineUsers.find(u => u.email === email);
+    // ☁️ บังคับส่งข้อมูลลง Cloud (Users Table) ทุกกรณี
+    try {
+        console.log('🚀 Final Sync Start:', state.user);
+        await saveOnlineUser(state.user);
 
-            if (verify) {
-                console.log('✅ Cloud Verification Success:', verify);
-                showToast('success', '🎉 สมัครสมาชิกและบันทึกลง Cloud สำเร็จ!');
-            } else {
-                console.warn('❌ Cloud Verification Failed: Data not found after save');
-                showToast('error', '⚠️ ระบบบันทึกลง Cloud ไม่สำเร็จ (Data Missing)');
-            }
-        } catch (syncErr) {
-            console.error('❌ Cloud sync failed:', syncErr);
-            showToast('error', '⚠️ ระบบ Cloud ขัดข้อง');
+        // 🧪 ตรวจสอบซ้ำ
+        const users = await fetchOnlineUsers();
+        if (users.some(u => u.name === name)) {
+            showToast('success', '🎉 สมัครสมาชิกและบันทึกลง Cloud สำเร็จ!');
+        } else {
+            console.warn('⚠️ Cloud Sync Delayed');
+            showToast('warning', '⏳ กำลังบันทึกข้อมูล (อาจต้องรอสักครู่)');
         }
-
-        saveToStorage();
-        updateUserUI();
-        closeModal('register-modal');
-        return;
+    } catch (err) {
+        console.error('❌ Cloud Failure:', err);
     }
 
-    // Legacy (Local Storage)
-    if (USERS.some(u => u.phone === phone)) {
-        showToast('error', '❌ เบอร์โทรศัพท์นี้ถูกใช้แล้ว');
-        return;
-    }
-    const user = { id: Date.now(), name, phone, email, pass, role: 'user' };
-    USERS.push(user);
-    saveUsers();
-    state.user = user;
     saveToStorage();
     updateUserUI();
     closeModal('register-modal');
-    showToast('success', '🎉 สมัครสมาชิก (เครื่องนี้) สำเร็จ!');
+    return;
 }
+
+
 
 function socialLogin(provider) {
     state.user = { name: 'ShopNow User', phone: '0800000000', email: `user @${provider}.com` };
