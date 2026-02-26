@@ -1477,12 +1477,19 @@ async function doRegister() {
         };
 
         // ☁️ Sync ข้อมูลลงตาราง users (Table) ทันที
-        await syncUserToGlobalList();
+        console.log('🚀 Attempting to sync new user to cloud table...', state.user);
+        try {
+            await saveOnlineUser(state.user);
+            console.log('✅ Cloud table sync confirmed.');
+        } catch (syncErr) {
+            console.error('❌ Cloud sync failed:', syncErr);
+            showToast('error', '⚠️ ตารางฐานข้อมูลมีปัญหา ข้อมูลสมาชิกอาจไม่ถูกบันทึก');
+        }
 
         saveToStorage();
         updateUserUI();
         closeModal('register-modal');
-        showToast('success', '🎉 สมัครสมาชิกออนไลน์สำเร็จ! กรุณาเช็คอีเมลเพื่อยืนยัน (ถ้ามี)');
+        showToast('success', '🎉 สมัครสมาชิกออนไลน์สำเร็จ! ข้อมูลถูกบันทึกลง Cloud แล้ว');
         return;
     }
 
