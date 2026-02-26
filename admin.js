@@ -74,7 +74,15 @@ async function loadData() {
     globalState.orders = onlineOrders;
     globalState.banners = onlineBanners;
     globalState.vouchers = onlineVouchers;
-    globalState.users = onlineUsers.length > 0 ? onlineUsers : JSON.parse(localStorage.getItem('shopnow_users') || '[]');
+
+    // ดึงรายชื่อสมาชิก: ถ้าออนไลน์มีข้อมูลให้ใช้จากออนไลน์เป็นหลัก
+    if (onlineUsers && onlineUsers.length > 0) {
+        console.log('👥 Loaded Users from Cloud:', onlineUsers.length);
+        globalState.users = onlineUsers;
+    } else {
+        console.log('🏠 No users found in Cloud, falling back to LocalStorage');
+        globalState.users = JSON.parse(localStorage.getItem('shopnow_users') || '[]');
+    }
 
     // ตรวจสอบว่ามี Admin ในรายชื่อหรือยัง ถ้าไม่มีให้เพิ่มหลอกๆ ไว้แสดงผล
     if (adminState.currentUser && !globalState.users.find(u => u.email === adminState.currentUser.email)) {
@@ -102,7 +110,7 @@ async function adminLogin() {
     const { data, error } = await signInOnline(email, pass);
 
     if (error) {
-        // Fallback สำหรับ Local Admin (ถ้ายังไม่ได้สมัคร Online)
+        // Fallback สำหรับ Local Admin
         const user = globalState.users.find(u => u.email === email && u.isAdmin && u.pass === pass);
         if (email === 'houseofstamp@gmail.com' || user) {
             const loggedUser = user || { name: 'Super Admin', email: email, isAdmin: true };
@@ -114,11 +122,16 @@ async function adminLogin() {
         }
     } else {
         const user = data.user;
+
+        // ☁️ ดึงข้อมูล Profile เพิ่มเติมจากตาราง users
+        const onlineProfiles = await fetchOnlineUsers();
+        const profile = onlineProfiles.find(p => p.email === user.email);
+
         const loggedUser = {
             id: user.id,
-            name: user.user_metadata?.full_name || 'Admin',
+            name: profile?.name || user.user_metadata?.full_name || 'Admin',
             email: user.email,
-            isAdmin: true
+            isAdmin: profile?.isAdmin || true
         };
         adminState.currentUser = loggedUser;
         sessionStorage.setItem('admin_session', JSON.stringify(loggedUser));
@@ -130,7 +143,10 @@ function showDashboard() {
     document.getElementById('admin-login-screen').style.display = 'none';
     document.getElementById('admin-sidebar-el').style.display = 'flex';
     document.getElementById('admin-main-el').style.display = 'block';
-    document.getElementById('admin-profile-info').textContent = `ผู้ดูแล: ${adminState.currentUser.name}`;
+
+    // แสดงชื่อจากโปรไฟล์ที่ล็อกอินเข้ามา
+    const adminName = adminState.currentUser.name || 'Admin';
+    document.getElementById('admin-profile-info').textContent = `👤 ผู้ดูแล: ${adminName}`;
     goTab('dash');
 }
 
@@ -308,7 +324,7 @@ function renderAllProducts(el) {
 }
 
 function renderAllUsers(el) {
-    if (globalState.users.length <= 1 && !globalState.users.find(u => !u.isAdmin)) {
+    if (globalState.users.length === 0) {
         el.innerHTML = `
             <div style="padding:60px; text-align:center; background:#fff; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.05)">
                 <div style="font-size:50px; margin-bottom:20px">👥</div>
@@ -323,8 +339,8 @@ function renderAllUsers(el) {
         <div style="margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap">
              <div style="font-size:14px; color:#666">พบสมาชิกทั้งหมด <b>${globalState.users.length}</b> รายชื่อ</div>
              <div style="display:flex; gap:10px">
+                <button class="btn-adm" style="background:#e74c3c; color:#fff; border:none" onclick="clearLocalUsers()">🗑️ ล้างรายชื่อในเครื่องนี้</button>
                 <button class="btn-adm" style="background:#2ecc71; color:#fff; border:none" onclick="manualSyncUsers()">☁️ ส่งรายชื่อสมาชิกขึ้น Cloud</button>
-                <button class="btn-adm" style="background:#eee" onclick="generateDemoUsers()">+ เพิ่ม User ทดสอบ</button>
              </div>
         </div>
         <div class="sd-table-wrap" style="background:#fff; border-radius:12px; overflow:hidden">
@@ -406,6 +422,14 @@ async function manualSyncUsers() {
     await loadData();
     renderAllUsers(document.getElementById('admin-content-area'));
     alert(`✅ ซิงค์สำเร็จ! ส่งขึ้นออนไลน์แล้ว ${successCount} รายชื่อ`);
+}
+
+async function clearLocalUsers() {
+    if (!confirm('คุณแน่ใจว่าต้องการล้างรายชื่อสมาชิก "ในเครื่องนี้" ทั้งหมด?\nรายชื่อที่ยังไม่ได้ส่งขึ้น Cloud จะหายไปถาวร')) return;
+    localStorage.removeItem('shopnow_users');
+    await loadData();
+    renderAllUsers(document.getElementById('admin-content-area'));
+    alert('✅ ล้างรายชื่อในเครื่องเรียบร้อยแล้ว');
 }
 
 function viewUserDetail(id) {
