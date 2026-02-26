@@ -1240,8 +1240,11 @@ function updateCheckoutSummary() {
 
 async function placeOrder() {
     const fname = document.getElementById('co-fname')?.value;
+    const lname = document.getElementById('co-lname')?.value || '';
     const phone = document.getElementById('co-phone')?.value;
     const addr = document.getElementById('co-addr')?.value;
+    const province = document.getElementById('co-province')?.value || '';
+    const zip = document.getElementById('co-zip')?.value || '';
     if (!fname || !phone || !addr) { showToast('error', '❌ กรุณากรอกข้อมูลให้ครบถ้วน'); return; }
 
     // ✅ 1. ตรวจสต็อกก่อนสั่งซื้อ (Pre-check)
@@ -1288,6 +1291,9 @@ async function placeOrder() {
     const discount = state.appliedCoupon?.discount || 0;
     const finalTotal = subtotal + shipping - discount;
 
+    const fullName = lname ? `${fname} ${lname}` : fname;
+    const fullAddr = [addr, province, zip].filter(Boolean).join(' ');
+
     const order = {
         id: orderId,
         items: [...state.cart],
@@ -1296,7 +1302,7 @@ async function placeOrder() {
         shipping: shipping,
         date: new Date().toLocaleDateString('th-TH'),
         status: 'shipping',
-        address: `${fname} | ${phone} | ${addr} `,
+        address: `${fullName} | ${phone} | ${fullAddr}`,
         paymentMethod: state.paymentMethod || 'card',
         shippingMethod: state.shippingMethod || 'standard',
         userId: state.user?.id || null // ระบุเจ้าของออเดอร์
@@ -2875,7 +2881,8 @@ function printOrder(orderId) {
                 <div class="shipping-label">
                     <div class="label-tag">📍 สำหรับจัดส่งพัสดุ (Shipping Label)</div>
                     <div class="customer-name">ผู้รับ: ${o.address.split(' | ')[0] || 'ไม่ระบุชื่อ'}</div>
-                    <div class="customer-address">ที่อยู่: ${o.address.split(' | ')[1] || 'ไม่ระบุที่อยู่'}</div>
+                    ${o.address.split(' | ')[1] ? `<div class="customer-address" style="margin-top:4px">📞 ${o.address.split(' | ')[1]}</div>` : ''}
+                    <div class="customer-address">📍 ที่อยู่: ${o.address.split(' | ')[2] || o.address.split(' | ')[1] || 'ไม่ระบุที่อยู่'}</div>
                 </div>
 
                 <div class="footer">
