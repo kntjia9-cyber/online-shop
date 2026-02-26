@@ -134,7 +134,10 @@ async function updateUserOnline(fullName, metadata = {}) {
  * บันทึกข้อมูลโปรไฟล์ลงตาราง users
  */
 async function saveOnlineUser(user) {
-    if (!await isOnline()) return;
+    if (!await isOnline()) {
+        console.warn('⚠️ Cloud is offline, skipping user sync');
+        return;
+    }
     try {
         const client = getSupabase();
         const dbData = {
@@ -148,10 +151,18 @@ async function saveOnlineUser(user) {
             is_admin: user.isAdmin || false,
             last_login: new Date().toISOString()
         };
+
+        console.log('📡 Syncing User to Cloud...', dbData);
+
         const { error } = await client.from('users').upsert(dbData, { onConflict: 'id' });
-        if (error) console.error('❌ User Sync Error:', error.message);
+
+        if (error) {
+            console.error('❌ User Sync Error (Supabase):', error.message, error.details);
+        } else {
+            console.log('✅ User Sync Success!');
+        }
     } catch (err) {
-        console.error('❌ User Sync Error:', err);
+        console.error('❌ User Sync Unexpected Error:', err);
     }
 }
 
@@ -319,8 +330,13 @@ async function fetchOnlineOrders() {
         // ถ้าเป็น Admin ให้ดึงทั้งหมด ถ้าเป็น User ให้ดึงเฉพาะของตัวเอง
         let query = client.from('orders').select('*');
 
-        if (state.user && !state.user.isAdmin) {
-            query = query.eq('user_id', state.user.id);
+        // ตรวจสอบ User State (รองรับทั้งหน้า App และหน้า Admin)
+        const currentUser = (typeof adminState !== 'undefined' && adminState.currentUser)
+            ? adminState.currentUser
+            : (typeof state !== 'undefined' ? state.user : null);
+
+        if (currentUser && !currentUser.isAdmin) {
+            query = query.eq('user_id', currentUser.id);
         }
 
         const { data, error } = await query.order('created_at', { ascending: false });

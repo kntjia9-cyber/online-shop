@@ -1414,6 +1414,10 @@ async function doLogin() {
                 role: user.user_metadata?.role || 'user',
                 isAdmin: user.email === 'houseofstamp@gmail.com' || user.email.includes('admin')
             };
+
+            // ☁️ Sync ลงฐานข้อมูลออนไลน์ด้วย (เผื่อยังไม่มีในตาราง users)
+            await syncUserToGlobalList();
+
             saveToStorage();
             updateUserUI();
             closeModal('login-modal');
