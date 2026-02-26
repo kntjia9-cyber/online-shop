@@ -72,6 +72,7 @@ async function saveOnlineProduct(p) {
             shop: p.shop,
             shop_badge: p.shopBadge,
             options: p.options,
+            variations: p.variations || null,
             option_title: p.optionTitle,
             description: p.desc,
             image: p.image || null

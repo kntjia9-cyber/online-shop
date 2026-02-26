@@ -558,6 +558,27 @@ function selectOption(el, type, val) {
     el.closest('.options-row').querySelectorAll('.option-btn').forEach(b => b.classList.remove('active'));
     el.classList.add('active');
     state.selectedOptions[type] = val;
+
+    // 💰 อัปเดตราคาตามตัวเลือก (Variations)
+    const p = state.currentProduct;
+    if (p && p.variations) {
+        const variation = p.variations.find(v => v.name === val);
+        if (variation) {
+            const priceEl = document.querySelector('.info-price');
+            const origEl = document.querySelector('.info-price-orig');
+            const discEl = document.querySelector('.info-discount');
+
+            if (priceEl) priceEl.textContent = `฿${formatNum(variation.price)}`;
+
+            // ปรับส่วนลด (ถ้ามี)
+            if (p.originalPrice && origEl) {
+                // คำนวณส่วนลดใหม่ตามสัดส่วนเดิม หรือซ่อนถ้าราคา variation สูงกว่า
+                const ratio = p.price / p.originalPrice;
+                const newOrig = Math.round(variation.price / ratio);
+                origEl.textContent = `฿${formatNum(newOrig)}`;
+            }
+        }
+    }
 }
 
 function changeQty(d) {
@@ -579,9 +600,9 @@ function addToCart(e, id) {
     e.stopPropagation();
     const p = PRODUCTS.find(x => x.id === id);
     if (!p) return;
-    const existing = state.cart.find(c => c.id === id);
+    const existing = state.cart.find(c => c.id === id && c.variant === 'ค่าเริ่มต้น');
     if (existing) existing.qty++;
-    else state.cart.push({ id, qty: 1, variant: 'ค่าเริ่มต้น' });
+    else state.cart.push({ id, qty: 1, variant: 'ค่าเริ่มต้น', price: p.price });
     updateCartBadge();
     saveToStorage();
     showToast('success', `🛒 เพิ่ม "${p.name.substring(0, 20)}..." ลงตะกร้าแล้ว`);
@@ -590,9 +611,26 @@ function addToCart(e, id) {
 function addToCartFromDetail() {
     const p = state.currentProduct;
     if (!p) return;
-    const existing = state.cart.find(c => c.id === p.id);
-    if (existing) existing.qty += state.productQty;
-    else state.cart.push({ id: p.id, qty: state.productQty, variant: state.selectedOptions.color || 'ค่าเริ่มต้น' });
+    // หาว่าตัวเลือกที่เลือกอยู่ มีราคาเท่าไหร่
+    let currentPrice = p.price;
+    const selectedVariant = state.selectedOptions.color || 'ค่าเริ่มต้น';
+    if (p.variations) {
+        const v = p.variations.find(x => x.name === selectedVariant);
+        if (v) currentPrice = v.price;
+    }
+
+    const existing = state.cart.find(c => c.id === p.id && c.variant === selectedVariant);
+    if (existing) {
+        existing.qty += state.productQty;
+        existing.price = currentPrice; // อัปเดตราคาให้เป็นปัจจุบัน
+    } else {
+        state.cart.push({
+            id: p.id,
+            qty: state.productQty,
+            variant: selectedVariant,
+            price: currentPrice
+        });
+    }
     updateCartBadge();
     saveToStorage();
     showToast('success', `🛒 เพิ่มสินค้า ${state.productQty} ชิ้นลงตะกร้าแล้ว`);
@@ -627,28 +665,29 @@ function renderCart() {
     ${state.cart.map(c => {
         const p = PRODUCTS.find(x => x.id === c.id);
         if (!p) return '';
+        const price = c.price || p.price;
         return `<div class="cart-item">
         <div style="font-size:11px;color:var(--text-3)"><input type="checkbox" checked style="width:16px;height:16px"></div>
         <div style="display:flex;gap:12px;align-items:center">
           <div class="cart-item-img" onclick="viewProduct(${p.id})" style="cursor:pointer">${p.emoji}</div>
           <div><div class="product-name" style="max-width:200px;cursor:pointer" onclick="viewProduct(${p.id})">${p.name}</div><div class="cart-item-variant">ตัวเลือก: ${c.variant}</div></div>
         </div>
-        <div class="cart-item-price">฿${formatNum(p.price)}</div>
+        <div class="cart-item-price">฿${formatNum(price)}</div>
         <div class="cart-item-qty">
-          <button class="cart-qty-btn" onclick="updateCartQty(${p.id},-1)">−</button>
+          <button class="cart-qty-btn" onclick="updateCartQty(${p.id},'${c.variant}',-1)">−</button>
           <span class="cart-qty-num">${c.qty}</span>
-          <button class="cart-qty-btn" onclick="updateCartQty(${p.id},1)">+</button>
+          <button class="cart-qty-btn" onclick="updateCartQty(${p.id},'${c.variant}',1)">+</button>
         </div>
-        <div class="cart-item-total">฿${formatNum(p.price * c.qty)}</div>
-        <button class="cart-delete" onclick="removeFromCart(${p.id})">🗑️</button>
+        <div class="cart-item-total">฿${formatNum(price * c.qty)}</div>
+        <button class="cart-delete" onclick="removeFromCart(${p.id},'${c.variant}')">🗑️</button>
       </div>`;
     }).join('')}`;
 
     renderCartSummary(sumEl);
 }
 
-function updateCartQty(id, d) {
-    const c = state.cart.find(x => x.id === id);
+function updateCartQty(id, variant, d) {
+    const c = state.cart.find(x => x.id === id && x.variant === variant);
     if (!c) return;
     c.qty = Math.max(1, c.qty + d);
     saveToStorage();
@@ -656,8 +695,8 @@ function updateCartQty(id, d) {
     renderCart();
 }
 
-function removeFromCart(id) {
-    state.cart = state.cart.filter(c => c.id !== id);
+function removeFromCart(id, variant) {
+    state.cart = state.cart.filter(c => !(c.id === id && c.variant === variant));
     saveToStorage();
     updateCartBadge();
     renderCart();
@@ -667,7 +706,8 @@ function removeFromCart(id) {
 function renderCartSummary(el) {
     const subtotal = state.cart.reduce((s, c) => {
         const p = PRODUCTS.find(x => x.id === c.id);
-        return s + (p ? p.price * c.qty : 0);
+        const price = c.price || (p ? p.price : 0);
+        return s + (price * c.qty);
     }, 0);
     const shipping = subtotal >= 199 ? 0 : 40;
     const couponDiscount = state.appliedCoupon ? state.appliedCoupon.discount : 0;
@@ -1043,7 +1083,11 @@ function renderCheckout() {
       </div>
       ${(() => {
             const vlist = state.vouchers || VOUCHERS;
-            const subtotal = state.cart.reduce((s, c) => { const p = PRODUCTS.find(x => x.id === c.id); return s + (p ? p.price * c.qty : 0); }, 0);
+            const subtotal = state.cart.reduce((s, c) => {
+                const p = PRODUCTS.find(x => x.id === c.id);
+                const price = c.price || (p ? p.price : 0);
+                return s + (price * c.qty);
+            }, 0);
             if (!vlist.length) return '<p style="font-size:13px;color:var(--text-3)">ไม่มีคูปองในขณะนี้</p>';
             return `<div style="display:flex;flex-wrap:wrap;gap:10px">
           ${vlist.map(v => {
@@ -1078,14 +1122,22 @@ function renderCheckout() {
         })()}
     </div>`;
 
-    const subtotal = state.cart.reduce((s, c) => { const p = PRODUCTS.find(x => x.id === c.id); return s + (p ? p.price * c.qty : 0); }, 0);
+    const subtotal = state.cart.reduce((s, c) => {
+        const p = PRODUCTS.find(x => x.id === c.id);
+        const price = c.price || (p ? p.price : 0);
+        return s + (price * c.qty);
+    }, 0);
     const shipping = getShippingCost(subtotal);
     const discount = state.appliedCoupon?.discount || 0;
     const total = subtotal + shipping - discount;
 
     sumEl.innerHTML = `
         <h3>รายการสั่งซื้อ</h3>
-            ${state.cart.map(c => { const p = PRODUCTS.find(x => x.id === c.id); return p ? `<div style="display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)"><div style="font-size:28px">${p.emoji}</div><div style="flex:1"><div style="font-size:13px">${p.name.substr(0, 30)}...</div><div style="font-size:12px;color:var(--text-3)">x${c.qty}</div></div><div style="color:var(--primary);font-weight:600">฿${formatNum(p.price * c.qty)}</div></div>` : '' }).join('')}
+            ${state.cart.map(c => {
+        const p = PRODUCTS.find(x => x.id === c.id);
+        const price = c.price || (p ? p.price : 0);
+        return p ? `<div style="display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)"><div style="font-size:28px">${p.emoji}</div><div style="flex:1"><div style="font-size:13px">${p.name.substr(0, 30)}...</div><div style="font-size:12px;color:var(--text-3)">${c.variant} | x${c.qty}</div></div><div style="color:var(--primary);font-weight:600">฿${formatNum(price * c.qty)}</div></div>` : ''
+    }).join('')}
     <div class="summary-row"><span>ราคาสินค้า</span><span>฿${formatNum(subtotal)}</span></div>
     <div class="summary-row"><span>ค่าจัดส่ง</span><span>฿${shipping}</span></div>
     ${discount ? `<div class="summary-row" style="color:var(--primary)"><span>ส่วนลด</span><span>-฿${discount}</span></div>` : ''}
@@ -1118,7 +1170,11 @@ function getShippingCost(subtotal) {
 function updateCheckoutSummary() {
     const sumEl = document.getElementById('checkout-summary');
     if (!sumEl) return;
-    const subtotal = state.cart.reduce((s, c) => { const p = PRODUCTS.find(x => x.id === c.id); return s + (p ? p.price * c.qty : 0); }, 0);
+    const subtotal = state.cart.reduce((s, c) => {
+        const p = PRODUCTS.find(x => x.id === c.id);
+        const price = c.price || (p ? p.price : 0);
+        return s + (price * c.qty);
+    }, 0);
     const shipping = getShippingCost(subtotal);
     const discount = state.appliedCoupon?.discount || 0;
     const total = subtotal + shipping - discount;
@@ -1153,7 +1209,8 @@ async function placeOrder() {
     const orderId = 'SN' + Date.now().toString().slice(-8);
     const subtotal = state.cart.reduce((s, c) => {
         const p = PRODUCTS.find(x => x.id === c.id);
-        return s + (p ? p.price * c.qty : 0);
+        const price = c.price || (p ? p.price : 0);
+        return s + (price * c.qty);
     }, 0);
 
     // ✅ 2. ตัดสต็อกแบบ Direct (อัปเดตทั้งใน PRODUCTS และ sellerProducts)
@@ -1935,8 +1992,8 @@ function renderSdOverview(el) {
 
         // คำนวณยอดรวมของออเดอร์นี้เพื่อหาสัดส่วนส่วนลด
         const orderSubtotal = order.items.reduce((s, i) => {
-            const prod = PRODUCTS.find(x => String(x.id) === String(i.id));
-            return s + (prod ? prod.price * i.qty : 0);
+            const price = i.price || (PRODUCTS.find(x => String(x.id) === String(i.id))?.price || 0);
+            return s + (price * i.qty);
         }, 0);
         const discountRate = orderSubtotal > 0 ? (order.discount || 0) / orderSubtotal : 0;
 
@@ -1947,13 +2004,11 @@ function renderSdOverview(el) {
                     return prod && prod.shop === myShopName;
                 })();
             if (isMyProduct) {
-                const product = PRODUCTS.find(p => String(p.id) === String(item.id));
-                if (product) {
-                    const itemGross = product.price * item.qty;
-                    const itemNet = itemGross * (1 - discountRate);
-                    totalRevenue += itemNet;
-                    totalSoldItems += item.qty;
-                }
+                const basePrice = item.price || (PRODUCTS.find(p => String(p.id) === String(item.id))?.price || 0);
+                const itemGross = basePrice * item.qty;
+                const itemNet = itemGross * (1 - discountRate);
+                totalRevenue += itemNet;
+                totalSoldItems += item.qty;
             }
         });
     });
@@ -2207,8 +2262,9 @@ function renderSdAddForm(el, editId) {
                 <textarea id="sp-desc" rows="4" placeholder="อธิบายสินค้า จุดเด่น วัสดุ การใช้งาน...">${p?.desc || ''}</textarea>
             </div>
             <div class="form-group">
-                <label>ตัวเลือกสินค้า (สี / รุ่น / ขนาด) <small style="color:#999">(ใส่หัวข้อได้ เช่น ขนาด / 7นิ้ว, 9นิ้ว)</small></label>
-                <input id="sp-options" placeholder="เช่น สี / ดำ, ขาว หรือ ขนาด / M, L" value="${p?.optionTitle ? p.optionTitle + ' / ' + p.options.join(', ') : (p?.options ? p.options.join(', ') : (state.user.defaultOptions || ''))}" />
+                <label>ตัวเลือกสินค้าและราคาเฉพาะ (ถ้ามี) <small style="color:#e67e22">(เช่น ความจุ / 64GB:15000, 128GB:18000)</small></label>
+                <input id="sp-options" placeholder="เช่น สี / แดง:500, น้ำเงิน:550 หรือ รุ่น / Basic:1000, Pro:2000" value="${p?.optionTitle ? p.optionTitle + ' / ' + (p.variations ? p.variations.map(v => `${v.name}:${v.price}`).join(', ') : p.options.join(', ')) : (p?.options ? p.options.join(', ') : (state.user.defaultOptions || ''))}" />
+                <p style="font-size:11px; color:#999; margin-top:4px">รูปแบบ: [หัวข้อ] / [ชื่อตัวเลือก1]:[ราคา], [ชื่อตัวเลือก2]:[ราคา]</p>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
                 <div class="form-group">
@@ -2277,33 +2333,44 @@ async function saveProduct() {
     const originalPrice = parseFloat(document.getElementById('sp-original-price')?.value) || null;
     const shop = document.getElementById('sp-shop')?.value.trim() || (state.user.shopName || (state.user.name + ' Shop'));
     const optionsRaw = document.getElementById('sp-options')?.value.trim();
-    let optionTitle = 'สี / รุ่น';
+    let optionTitle = 'ตัวเลือก';
     let options = [];
+    let variations = [];
 
     if (optionsRaw) {
         if (optionsRaw.includes('/')) {
             const parts = optionsRaw.split('/');
             optionTitle = parts[0].trim();
-            options = parts[1].split(',').map(s => s.trim()).filter(s => s);
-        } else if (optionsRaw.includes(':')) {
-            const parts = optionsRaw.split(':');
-            optionTitle = parts[0].trim();
-            options = parts[1].split(',').map(s => s.trim()).filter(s => s);
+            const optStrings = parts[1].split(',').map(s => s.trim()).filter(s => s);
+            optStrings.forEach(os => {
+                if (os.includes(':')) {
+                    const [vName, vPrice] = os.split(':');
+                    variations.push({ name: vName.trim(), price: parseFloat(vPrice.trim()) });
+                    options.push(vName.trim());
+                } else {
+                    variations.push({ name: os, price: price });
+                    options.push(os);
+                }
+            });
         } else {
-            options = optionsRaw.split(',').map(s => s.trim()).filter(s => s);
+            const optStrings = optionsRaw.split(',').map(s => s.trim()).filter(s => s);
+            optStrings.forEach(os => {
+                if (os.includes(':')) {
+                    const [vName, vPrice] = os.split(':');
+                    variations.push({ name: vName.trim(), price: parseFloat(vPrice.trim()) });
+                    options.push(vName.trim());
+                } else {
+                    variations.push({ name: os, price: price });
+                    options.push(os);
+                }
+            });
         }
     }
 
-    // ใช้ค่าเริ่มต้นจากร้านค้าถ้าไม่ได้ระบุรายสินค้า
-    if (options.length === 0 && state.user?.defaultOptions) {
-        const dRaw = state.user.defaultOptions;
-        if (dRaw.includes('/')) {
-            const parts = dRaw.split('/');
-            optionTitle = parts[0].trim();
-            options = parts[1].split(',').map(s => s.trim()).filter(s => s);
-        } else {
-            options = dRaw.split(',').map(s => s.trim()).filter(s => s);
-        }
+    // Fallback: If no variations, create one with the base price
+    if (variations.length === 0) {
+        variations.push({ name: 'ค่าเริ่มต้น', price: price });
+        options.push('ค่าเริ่มต้น');
     }
 
     const shopBadge = document.getElementById('sp-shop-badge')?.value.trim() || state.user?.shopBadge || '';
@@ -2325,13 +2392,13 @@ async function saveProduct() {
     if (editingProductId) {
         const idx = sellerProducts.findIndex(p => String(p.id) === String(editingProductId));
         if (idx >= 0) {
-            pData = { ...sellerProducts[idx], sku: finalSku, name, price, stock, category, desc, originalPrice, shop, shopBadge, tags, badge, optionTitle, options, emoji: selectedEmoji, image: window.tempProductImage };
+            pData = { ...sellerProducts[idx], sku: finalSku, name, price, stock, category, desc, originalPrice, shop, shopBadge, tags, badge, optionTitle, options, variations, emoji: selectedEmoji, image: window.tempProductImage };
             sellerProducts[idx] = pData;
             showToast('success', '✅ แก้ไขสินค้าเรียบร้อย!');
         }
     } else {
         const newId = Date.now();
-        pData = { id: newId, sku: finalSku, name, price, originalPrice, stock, category, desc, shop, shopBadge, tags, badge, optionTitle, options, emoji: selectedEmoji, image: window.tempProductImage, rating: 5.0, sold: 0, reviews: [], specs: {} };
+        pData = { id: newId, sku: finalSku, name, price, originalPrice, stock, category, desc, shop, shopBadge, tags, badge, optionTitle, options, variations, emoji: selectedEmoji, image: window.tempProductImage, rating: 5.0, sold: 0, reviews: [], specs: {} };
         sellerProducts.push(pData);
         showToast('success', '🎉 เพิ่มสินค้าใหม่สำเร็จ!');
     }
