@@ -312,14 +312,24 @@ async function saveOnlineOrder(order) {
             user_id: state.user?.id && typeof state.user.id === 'string' ? state.user.id : null,
             items: order.items,
             total_amount: order.total,
+            discount: order.discount || 0,
+            shipping_cost: order.shipping || 0,
             status: order.status || 'pending',
             shipping_address: order.address,
-            payment_method: order.paymentMethod,
+            payment_method: order.paymentMethod || 'card',
+            shipping_method: order.shippingMethod || 'standard',
             tracking_number: order.trackingNumber || ''
         };
+
+        console.log('📡 Syncing Order to Cloud...', dbData);
+
         const { error } = await client.from('orders').upsert(dbData);
-        if (error) console.error('❌ Order Save Error:', error.message);
-        else console.log('✅ Order Saved Online');
+        if (error) {
+            console.error('❌ Order Save Error:', error.message);
+            if (window.showToast) showToast('error', '❌ บันทึก Order ไม่สำเร็จ: ' + error.message);
+        } else {
+            console.log('✅ Order Saved Online');
+        }
     } catch (err) {
         console.error('❌ Unexpected Order Error:', err);
     }
@@ -340,7 +350,7 @@ async function fetchOnlineOrders() {
             ? adminState.currentUser
             : (typeof state !== 'undefined' ? state.user : null);
 
-        if (currentUser && !currentUser.isAdmin) {
+        if (currentUser && !currentUser.isAdmin && !currentUser.is_seller) {
             query = query.eq('user_id', currentUser.id);
         }
 
@@ -349,12 +359,15 @@ async function fetchOnlineOrders() {
 
         return data.map(o => ({
             id: o.id,
-            date: o.created_at,
+            date: o.created_at ? new Date(o.created_at).toLocaleDateString('th-TH') : o.date,
             items: o.items,
             total: o.total_amount,
+            discount: o.discount || 0,
+            shipping: o.shipping_cost || 0,
             status: o.status,
             address: o.shipping_address,
             paymentMethod: o.payment_method,
+            shippingMethod: o.shipping_method,
             trackingNumber: o.tracking_number
         }));
     } catch (err) {

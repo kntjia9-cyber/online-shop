@@ -1252,7 +1252,9 @@ async function placeOrder() {
         shipping: shipping,
         date: new Date().toLocaleDateString('th-TH'),
         status: 'shipping',
-        address: `${fname} | ${phone} | ${addr} `
+        address: `${fname} | ${phone} | ${addr} `,
+        paymentMethod: state.paymentMethod || 'card',
+        shippingMethod: state.shippingMethod || 'standard'
     };
     state.orders.unshift(order);
     state.cart = [];
@@ -2579,9 +2581,16 @@ function updateTracking(orderId) {
     }
 }
 
-function updateOrderStatus(orderId, newStatus) {
+async function updateOrderStatus(orderId, newStatus) {
     const order = state.orders.find(o => o.id === orderId);
-    if (order) { order.status = newStatus; saveToStorage(); showToast('success', '✅ อัปเดตสถานะแล้ว'); }
+    if (order) {
+        order.status = newStatus;
+        saveToStorage();
+        showToast('success', '✅ อัปเดตสถานะแล้ว');
+
+        // ☁️ Sync ขึ้น Cloud
+        await saveOnlineOrder(order);
+    }
 }
 
 function renderSdSettings(el) {
