@@ -110,14 +110,74 @@ async function signInOnline(email, password) {
 }
 
 /**
- * อัปเดตโปรไฟล์ออนไลน์
+ * อัปเดตโปรไฟล์ออนไลน์ (Auth User & Database)
  */
 async function updateUserOnline(fullName, metadata = {}) {
     const client = getSupabase();
     const { data, error } = await client.auth.updateUser({
         data: { full_name: fullName, ...metadata }
     });
+
+    if (data?.user) {
+        // Sync ลงตาราง users ด้วย
+        await saveOnlineUser({
+            id: data.user.id,
+            email: data.user.email,
+            name: fullName,
+            ...metadata
+        });
+    }
     return { data, error };
+}
+
+/**
+ * บันทึกข้อมูลโปรไฟล์ลงตาราง users
+ */
+async function saveOnlineUser(user) {
+    if (!await isOnline()) return;
+    try {
+        const client = getSupabase();
+        const dbData = {
+            id: String(user.id),
+            email: user.email,
+            name: user.name,
+            phone: user.phone || '',
+            role: user.role || 'user',
+            is_seller: user.isSeller || false,
+            shop_name: user.shopName || '',
+            is_admin: user.isAdmin || false,
+            last_login: new Date().toISOString()
+        };
+        const { error } = await client.from('users').upsert(dbData, { onConflict: 'id' });
+        if (error) console.error('❌ User Sync Error:', error.message);
+    } catch (err) {
+        console.error('❌ User Sync Error:', err);
+    }
+}
+
+/**
+ * ดึงรายชื่อสมาชิกทั้งหมดจาก Cloud
+ */
+async function fetchOnlineUsers() {
+    if (!await isOnline()) return [];
+    try {
+        const client = getSupabase();
+        const { data, error } = await client.from('users').select('*').order('name', { ascending: true });
+        if (error) throw error;
+        return data.map(u => ({
+            id: u.id,
+            email: u.email,
+            name: u.name,
+            phone: u.phone,
+            role: u.role,
+            isSeller: u.is_seller,
+            shopName: u.shop_name,
+            isAdmin: u.is_admin
+        }));
+    } catch (err) {
+        console.error('❌ Fetch Users Error:', err);
+        return [];
+    }
 }
 
 /**
@@ -128,6 +188,100 @@ async function deleteOnlineProduct(id) {
     const client = getSupabase();
     const { error } = await client.from('products').delete().eq('id', id);
     if (error) console.error('❌ Delete Error:', error);
+}
+
+/**
+ * ลบสินค้าทั้งหมดออกจาก Cloud
+ */
+async function deleteAllOnlineProducts() {
+    if (!await isOnline()) return;
+    const client = getSupabase();
+    // ใช้ filter ที่ครอบคลุมทั้งตัวเลขและ UUID
+    const { error } = await client.from('products').delete().neq('id', '00000000-0000-0000-0000-000000000000').neq('id', 0);
+    if (error) {
+        console.error('❌ Delete Products Error:', error.message);
+        return false;
+    }
+    return true;
+}
+
+/**
+ * ลบคำสั่งซื้อทั้งหมดออกจาก Cloud
+ */
+async function deleteAllOnlineOrders() {
+    if (!await isOnline()) return;
+    const client = getSupabase();
+    const { error } = await client.from('orders').delete().neq('id', '0').neq('id', 0);
+    if (error) {
+        console.error('❌ Delete Orders Error:', error.message);
+        return false;
+    }
+    return true;
+}
+
+/**
+ * ลบคูปองทั้งหมดออกจาก Cloud
+ */
+async function deleteAllOnlineVouchers() {
+    if (!await isOnline()) return;
+    const client = getSupabase();
+    const { error } = await client.from('vouchers').delete().not('code', 'is', null);
+    if (error) {
+        console.error('❌ Delete Vouchers Error:', error.message);
+        return false;
+    }
+    return true;
+}
+
+/**
+ * ลบแบนเนอร์ทั้งหมดออกจาก Cloud
+ */
+async function deleteAllOnlineBanners() {
+    if (!await isOnline()) return;
+    const client = getSupabase();
+    const { error } = await client.from('banners').delete().neq('id', 0);
+    if (error) {
+        console.error('❌ Delete Banners Error:', error.message);
+        return false;
+    }
+    return true;
+}
+
+/**
+ * ลบสมาชิกทั้งหมดออกจาก Cloud (ยกเว้น Admin)
+ */
+async function deleteAllOnlineUsers() {
+    if (!await isOnline()) return;
+    const client = getSupabase();
+    // ลบทุกคนยกเว้นแอดมิน
+    const { error } = await client.from('users').delete().neq('email', 'houseofstamp@gmail.com');
+    if (error) {
+        console.error('❌ Delete Users Error:', error.message);
+        return false;
+    }
+    return true;
+}
+
+/**
+ * รีเซ็ตข้อมูลออนไลน์ทั้งหมด (ลบตามลำดับความสำคัญ)
+ */
+async function resetAllOnlineData() {
+    if (!await isOnline()) return false;
+
+    console.log('🚮 Starting Nuclear Reset...');
+
+    // ต้องลบ Orders ก่อนเสมอ เพราะอาจจะติด Foreign Key ของ Products/Users
+    const step1 = await deleteAllOnlineOrders();
+    const step2 = await deleteAllOnlineProducts();
+    const step3 = await deleteAllOnlineVouchers();
+    const step4 = await deleteAllOnlineBanners();
+    const step5 = await deleteAllOnlineUsers();
+
+    if (step1 && step2 && step3 && step4 && step5) {
+        console.log('✅ All online data cleared successfully');
+        return true;
+    }
+    return false;
 }
 
 /**
@@ -315,7 +469,10 @@ async function migrateToCloud() {
     if (!await isOnline()) return;
 
     // ตรวจสอบว่าเคยย้ายหรือยัง (ใช้ flag ใน localStorage)
-    if (localStorage.getItem('shopnow_migrated_v2')) return;
+    if (localStorage.getItem('shopnow_migrated_v3')) return;
+
+    // ถ้ามีการสั่ง Reset ล้างเครื่องไปแล้ว ไม่ต้อง Migrate ข้อมูลเก่าขึ้นมาอีก
+    if (localStorage.getItem('shopnow_force_clean')) return;
 
     console.log('📦 เริ่มการตรวจสอบการย้ายข้อมูลไป Cloud...');
 
@@ -356,6 +513,15 @@ async function migrateToCloud() {
         }
     }
 
-    localStorage.setItem('shopnow_migrated_v2', 'true');
+    // 5. ย้ายบัญชีสมาชิก (ถ้ามี)
+    const localUsers = JSON.parse(localStorage.getItem('shopnow_users') || '[]');
+    if (localUsers.length > 0) {
+        console.log('📦 กำลังย้ายข้อมูลสมาชิก', localUsers.length, 'รายชื่อ...');
+        for (const u of localUsers) {
+            await saveOnlineUser(u);
+        }
+    }
+
+    localStorage.setItem('shopnow_migrated_v3', 'true');
     console.log('✅ ตรวจสอบและย้ายข้อมูลเสร็จสมบูรณ์!');
 }

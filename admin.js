@@ -15,6 +15,10 @@ let globalState = {
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', async () => {
     updateCloudStatus('connecting');
+
+    // ☁️ ย้ายข้อมูลเดิมขึ้น Cloud (สำคัญมาก: เพื่อให้สมาชิกในเครื่องขึ้นโหมดออนไลน์)
+    await migrateToCloud();
+
     // โหลดข้อมูลเบื้องต้นจาก Cloud
     await loadData();
     checkAuth();
@@ -57,22 +61,20 @@ function refreshActiveTab() {
 
 async function loadData() {
     // ☁️ ดึงข้อมูลจาก Cloud (Supabase)
-    const [onlineProducts, onlineOrders, onlineBanners, onlineVouchers] = await Promise.all([
+    const [onlineProducts, onlineOrders, onlineBanners, onlineVouchers, onlineUsers] = await Promise.all([
         fetchOnlineProducts(),
         fetchOnlineOrders(),
         fetchOnlineBanners(),
-        fetchOnlineVouchers()
+        fetchOnlineVouchers(),
+        fetchOnlineUsers()
     ]);
 
     // ทับข้อมูลลงใน globalState
-    globalState.allProducts = onlineProducts.length > 0 ? onlineProducts : JSON.parse(JSON.stringify(PRODUCTS));
+    globalState.allProducts = onlineProducts;
     globalState.orders = onlineOrders;
-    globalState.banners = onlineBanners.length > 0 ? onlineBanners : state?.banners || [];
-    globalState.vouchers = onlineVouchers.length > 0 ? onlineVouchers : [...VOUCHERS];
-
-    // โหลด Users จาก Local (Supabase ไม่ได้เปิดให้ดึง Users ทั้งหมดผ่าน Anon Key เพื่อความปลอดภัย)
-    const savedUsers = JSON.parse(localStorage.getItem('shopnow_users') || '[]');
-    globalState.users = savedUsers;
+    globalState.banners = onlineBanners;
+    globalState.vouchers = onlineVouchers;
+    globalState.users = onlineUsers.length > 0 ? onlineUsers : JSON.parse(localStorage.getItem('shopnow_users') || '[]');
 
     // ตรวจสอบว่ามี Admin ในรายชื่อหรือยัง ถ้าไม่มีให้เพิ่มหลอกๆ ไว้แสดงผล
     if (adminState.currentUser && !globalState.users.find(u => u.email === adminState.currentUser.email)) {
@@ -208,15 +210,48 @@ function renderOverview(el) {
                 <div class="stat-value">${globalState.orders.length} ออเดอร์</div>
             </div>
         </div>
-        <div style="background:#fff; padding:30px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.05)">
-            <h3>🚀 ยินดีต้อนรับสู่ระบบจัดการ ShopNow</h3>
-            <p style="color:#666; margin-top:10px">คุณสามารถควบคุมทุกอย่างบนเว็บไซต์ได้จากที่นี่</p>
+        <div style="background:#fff; padding:30px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.05); display:flex; justify-content:space-between; align-items:center">
+            <div>
+                <h3>🚀 ยินดีต้อนรับสู่ระบบจัดการ ShopNow</h3>
+                <p style="color:#666; margin-top:10px">คุณสามารถควบคุมทุกอย่างบนเว็บไซต์ได้จากที่นี่</p>
+            </div>
+            <button class="btn-adm btn-adm-danger" style="background:#000; color:#fff; border:none; padding:12px 24px" onclick="resetSystem()">⚠️ รีเซ็ตระบบทั้งหมด (Nuclear Reset)</button>
         </div>
     `;
 }
 
+async function resetSystem() {
+    const confirm1 = confirm('🚨 คำเตือนขั้นเด็ดขาด: คุณกำลังจะลบข้อมูล "ทุกอย่าง" \n- สินค้าทั้งหมด\n- ออเดอร์ทั้งหมด\n- สมาชิกทั้งหมด (ยกเว้นแอดมิน)\n- แบนเนอร์และคูปอง\n\nข้อมูลทั้งในเครื่องและออนไลน์จะหายไปทั้งหมด ต้องการดำเนินการต่อหรือไม่?');
+    if (!confirm1) return;
+
+    const confirm2 = confirm('ยืนยันอีกครั้ง: ข้อมูลที่ลบแล้วไม่สามารถกู้คืนได้?');
+    if (!confirm2) return;
+
+    showToast('info', '⌛ กำลังล้างฐานข้อมูลออนไลน์...');
+
+    // 1. ล้างออนไลน์
+    const success = await resetAllOnlineData();
+
+    if (success) {
+        // 2. ล้างในเครื่องให้หมดเกลี้ยง
+        localStorage.clear();
+        // ป้องกันไม่ให้ระบบแอบเอาข้อมูลเก่าขึ้นไปใหม่
+        localStorage.setItem('shopnow_force_clean', 'true');
+
+        showToast('success', '✅ ระบบถูกล้างข้อมูลเรียบร้อยแล้ว');
+        alert('🎉 รีเซ็ตระบบเสร็จสิ้น! หน้าเว็บจะรีโหลดใหม่เพื่อเริ่มต้นจากศูนย์');
+        window.location.reload();
+    } else {
+        alert('❌ เกิดข้อผิดพลาดบางประการในการล้างข้อมูลออนไลน์');
+    }
+}
+
 function renderAllProducts(el) {
     el.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px">
+            <div style="font-size:14px; color:#666">พบสินค้าทั้งหมด <b>${globalState.allProducts.length}</b> รายการ</div>
+            <button class="btn-adm btn-adm-danger" style="background:#e74c3c; border:none; padding:8px 16px" onclick="deleteAllProducts()">🗑️ ลบสินค้าทั้งหมด</button>
+        </div>
         <div class="sd-table-wrap">
             <table class="sd-table">
                 <thead>
@@ -285,9 +320,12 @@ function renderAllUsers(el) {
     }
 
     el.innerHTML = `
-        <div style="margin-bottom:20px; display:flex; justify-content:space-between; align-items:center">
+        <div style="margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap">
              <div style="font-size:14px; color:#666">พบสมาชิกทั้งหมด <b>${globalState.users.length}</b> รายชื่อ</div>
-             <button class="btn-adm" style="background:#eee" onclick="generateDemoUsers()">+ เพิ่ม User ทดสอบ</button>
+             <div style="display:flex; gap:10px">
+                <button class="btn-adm" style="background:#2ecc71; color:#fff; border:none" onclick="manualSyncUsers()">☁️ ส่งรายชื่อสมาชิกขึ้น Cloud</button>
+                <button class="btn-adm" style="background:#eee" onclick="generateDemoUsers()">+ เพิ่ม User ทดสอบ</button>
+             </div>
         </div>
         <div class="sd-table-wrap" style="background:#fff; border-radius:12px; overflow:hidden">
             <table class="sd-table">
@@ -348,6 +386,26 @@ function generateDemoUsers() {
     loadData();
     goTab('users');
     alert('✅ สร้างข้อมูลทดสอบ 3 บัญชีเรียบร้อยแล้ว!');
+}
+
+async function manualSyncUsers() {
+    const localUsers = JSON.parse(localStorage.getItem('shopnow_users') || '[]');
+    if (localUsers.length === 0) return alert('❌ ไม่พบข้อมูลสมาชิกในเครื่องนี้');
+
+    if (!confirm(`คุณต้องการส่งรายชื่อสมาชิกทั้ง ${localUsers.length} รายชื่อขึ้นระบบออนไลน์ใช่หรือไม่?`)) return;
+
+    showToast('info', '⌛ กำลังส่งข้อมูลสมาชิกขึ้น Cloud...');
+    let successCount = 0;
+    for (const u of localUsers) {
+        try {
+            await saveOnlineUser(u);
+            successCount++;
+        } catch (e) { console.error(e); }
+    }
+
+    await loadData();
+    renderAllUsers(document.getElementById('admin-content-area'));
+    alert(`✅ ซิงค์สำเร็จ! ส่งขึ้นออนไลน์แล้ว ${successCount} รายชื่อ`);
 }
 
 function viewUserDetail(id) {
@@ -822,6 +880,25 @@ async function deleteProduct(id) {
     await loadData();
     renderAllProducts(document.getElementById('admin-content-area'));
     alert('🗑️ ลบสินค้าสำเร็จ');
+}
+
+async function deleteAllProducts() {
+    if (!confirm('⚠️ คำเตือน: คุณแน่ใจว่าต้องการลบสินค้า "ทั้งหมด" ออกจากระบบ? \nการกระทำนี้ไม่สามารถย้อนกลับได้')) return;
+
+    // ☁️ ลบใน Cloud
+    const success = await deleteAllOnlineProducts();
+
+    if (success) {
+        // ลบข้อมูล local updates ด้วย
+        localStorage.removeItem('shopnow_product_updates');
+        localStorage.removeItem('shopnow_seller_products');
+
+        await loadData();
+        renderAllProducts(document.getElementById('admin-content-area'));
+        alert('✅ ลบสินค้าทั้งหมดออกจากระบบเรียบร้อยแล้ว');
+    } else {
+        alert('❌ เกิดข้อผิดพลาดในการลบข้อมูล');
+    }
 }
 
 async function toggleTag(id, tag) {

@@ -46,6 +46,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadUsers();
     loadFromStorage();
 
+    // เคลียร์สินค้าเดิมออกให้หมด เพื่อรอข้อมูลจริงจาก Cloud
+    PRODUCTS.length = 0;
+
     // ☁️ ย้ายข้อมูลเดิมขึ้น Cloud (ถ้ามีและยังไม่ได้ย้าย)
     await migrateToCloud();
 
@@ -1369,7 +1372,7 @@ async function saveProfile() {
 }
 
 // ✅ ฟังก์ชันช่วย Sync ข้อมูล User ปัจจุบันเข้าลิสต์แอดมิน (ทำให้ Admin เห็นทันที)
-function syncUserToGlobalList() {
+async function syncUserToGlobalList() {
     if (!state.user) return;
     if (!state.user.id) state.user.id = Date.now(); // ประกันความปลอดภัยเรื่อง ID
 
@@ -1381,6 +1384,10 @@ function syncUserToGlobalList() {
     } else {
         USERS.push(state.user); // เพิ่มใหม่ถ้ายังไม่มี
     }
+
+    // ☁️ Sync ขึ้น Cloud
+    await saveOnlineUser(state.user);
+
     saveUsers(); // บันทีกลง localStorage (ซึ่งจะไปกระตุ้น Event 'storage' ในหน้า Admin)
 }
 
