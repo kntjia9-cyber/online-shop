@@ -1470,6 +1470,10 @@ async function doRegister() {
             id: user.id, email, name, role: 'user',
             isAdmin: email === 'houseofstamp@gmail.com' || email.includes('admin')
         };
+
+        // ☁️ Sync ข้อมูลลงตาราง users (Table) ทันที
+        await syncUserToGlobalList();
+
         saveToStorage();
         updateUserUI();
         closeModal('register-modal');
