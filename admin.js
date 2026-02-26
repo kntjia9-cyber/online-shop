@@ -856,21 +856,7 @@ async function saveNewBanner() {
     renderBanners(document.getElementById('admin-content-area'));
     alert('✅ เพิ่มแบนเนอร์สำเร็จ!');
 }
-
-function deleteBanner(id) {
-    if (confirm('คุณแน่ใจว่าต้องการลบแบนเนอร์นี้?')) {
-        const savedState = JSON.parse(localStorage.getItem('shopnow_state') || '{}');
-        let banners = savedState.banners || [];
-        banners = banners.filter(b => String(b.id) !== String(id));
-        savedState.banners = banners;
-        localStorage.setItem('shopnow_state', JSON.stringify(savedState));
-
-        loadData();
-        renderBanners(document.getElementById('admin-content-area'));
-        alert('🗑️ ลบแบนเนอร์เรียบร้อย');
-    }
-}
-
+// Product & Tag Actions
 async function deleteProduct(id) {
     if (!confirm('คุณต้องการลบสินค้านี้ออกจากแพลตฟอร์มหรือไม่?')) return;
 
