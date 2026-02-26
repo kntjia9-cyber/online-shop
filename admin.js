@@ -282,7 +282,13 @@ function renderAllProducts(el) {
                 <tbody>
                     ${globalState.allProducts.map(p => `
                         <tr>
-                            <td><div style="font-size:24px">${p.emoji || '📦'}</div></td>
+                            <td>
+                                <div style="width:40px; height:40px; border-radius:8px; overflow:hidden; background:#f5f5f5; display:flex; align-items:center; justify-content:center">
+                                    ${p.image || (p.images && p.images[0])
+            ? `<img src="${p.image || p.images[0]}" style="width:100%; height:100%; object-fit:cover">`
+            : `<div style="font-size:24px">${p.emoji || '📦'}</div>`}
+                                </div>
+                            </td>
                             <td>
                                 <div><b>${p.name}</b></div>
                                 <div style="display:flex; gap:8px; margin-top:4px">
@@ -738,6 +744,7 @@ function renderPlatformOrders(el) {
                     <tr>
                         <th>เลขที่ออเดอร์</th>
                         <th>วันที่สั่งซื้อ</th>
+                        <th>รายการสินค้า</th>
                         <th>ข้อมูลลูกค้า</th>
                         <th>ร้านค้า</th>
                         <th>ยอดรวม</th>
@@ -749,7 +756,26 @@ function renderPlatformOrders(el) {
                     ${globalState.orders.map(o => `
                         <tr>
                             <td><b>#${o.id}</b></td>
-                            <td>${o.date}</td>
+                            <td style="font-size:12px">${o.date}</td>
+                            <td>
+                                <div style="display:flex; flex-direction:column; gap:6px">
+                                    ${o.items.map(item => {
+        const p = globalState.allProducts.find(px => String(px.id) === String(item.id));
+        const imgUrl = p?.image || (p?.images && p?.images[0]) || '';
+        return `
+                                            <div style="display:flex; align-items:center; gap:8px">
+                                                <div style="width:30px; height:30px; border-radius:4px; overflow:hidden; background:#f9f9f9; display:flex; align-items:center; justify-content:center; flex-shrink:0">
+                                                    ${imgUrl ? `<img src="${imgUrl}" style="width:100%; height:100%; object-fit:cover">` : `<span style="font-size:14px">${p?.emoji || '📦'}</span>`}
+                                                </div>
+                                                <div style="font-size:11px; line-height:1.2">
+                                                    <div style="font-weight:600">${p?.name.substring(0, 20) || 'Unknown item'}...</div>
+                                                    <div style="color:#666">x${item.qty} | ฿${(item.price || p?.price || 0).toLocaleString()}</div>
+                                                </div>
+                                            </div>
+                                        `;
+    }).join('')}
+                                </div>
+                            </td>
                             <td>
                                 <div style="font-size:13px">${o.address?.split(' | ')[0] || 'Unknown'}</div>
                                 <div style="font-size:11px; color:#999">${o.address?.split(' | ')[1] || ''}</div>
