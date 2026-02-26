@@ -1525,12 +1525,29 @@ async function doLogin() {
     }
 }
 
+function switchAuthTab(type) {
+    const tabs = document.querySelectorAll('.auth-tab');
+    const phone = document.getElementById('auth-phone');
+    const email = document.getElementById('auth-email');
+    tabs.forEach(t => t.classList.remove('active'));
+    if (type === 'phone') {
+        tabs[0].classList.add('active');
+        phone?.classList.remove('hidden');
+        email?.classList.add('hidden');
+    } else {
+        tabs[1].classList.add('active');
+        phone?.classList.add('hidden');
+        email?.classList.remove('hidden');
+    }
+}
+
 async function doRegister() {
     const name = document.getElementById('reg-name')?.value.trim();
     const phone = document.getElementById('reg-phone')?.value.trim();
     const email = document.getElementById('reg-email')?.value.trim();
     const pass = document.getElementById('reg-pass')?.value;
     const agree = document.getElementById('reg-agree')?.checked;
+    const isSeller = document.getElementById('reg-is-seller')?.checked;
 
     if (!name || !pass || (!phone && !email)) {
         showToast('error', '❌ กรุณากรอกชื่อ รหัสผ่าน และ (เบอร์โทร หรือ อีเมล)');
@@ -1546,6 +1563,8 @@ async function doRegister() {
         phone: phone || '',
         name: name,
         role: 'user',
+        isSeller: isSeller || false,
+        shopName: isSeller ? (name + "'s Shop") : '',
         isAdmin: (email && (email === 'houseofstamp@gmail.com' || email.includes('admin')))
     };
 
