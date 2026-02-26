@@ -59,13 +59,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const online = await isOnline();
     updateCloudStatus(online ? 'connected' : 'offline');
 
-    // ☁️ ดึงออเดอร์ออนไลน์ (ถ้าล็อกอิน)
+    // ☁️ ดึงออเดอร์ออนไลน์ (ถ้าล็อกอินใช้ Cloud เป็นหลักเพื่อล้างข้อมูลปนกันในเครื่อง)
     if (state.user) {
-        const cloudOrders = await fetchOnlineOrders();
-        if (cloudOrders.length > 0) {
-            state.orders = cloudOrders;
-            saveToStorage();
-        }
+        state.orders = await fetchOnlineOrders();
+        saveToStorage();
     }
 
     // ☁️ ดึงแบนเนอร์และคูปองจาก Cloud
@@ -1254,7 +1251,8 @@ async function placeOrder() {
         status: 'shipping',
         address: `${fname} | ${phone} | ${addr} `,
         paymentMethod: state.paymentMethod || 'card',
-        shippingMethod: state.shippingMethod || 'standard'
+        shippingMethod: state.shippingMethod || 'standard',
+        userId: state.user?.id || null // ระบุเจ้าของออเดอร์
     };
     state.orders.unshift(order);
     state.cart = [];
@@ -1325,9 +1323,16 @@ function renderOrders() {
     // โหลด orders ล่าสุดจาก localStorage ทุกครั้ง เพื่อให้ tracking number ที่ seller บันทึกแสดงในหน้าลูกค้าเสมอ
     const freshState = JSON.parse(localStorage.getItem('shopnow_state') || '{}');
     if (freshState.orders) state.orders = freshState.orders;
-    const el = document.getElementById('orders-list');
-    if (!el) return;
-    let orders = state.orderFilter === 'all' ? state.orders : state.orders.filter(o => o.status === state.orderFilter);
+    // 🔒 กรองเฉพาะออเดอร์ที่เป็นของ User คนนี้จริงๆ หรือออเดอร์ Guest ที่มีเบอร์โทรตรงกัน
+    let orders = state.orders.filter(o => {
+        const isOwner = o.userId === state.user?.id;
+        const isGuestMatch = !o.userId && o.address && state.user?.phone && o.address.includes(state.user.phone);
+        return isOwner || isGuestMatch;
+    });
+
+    if (state.orderFilter !== 'all') {
+        orders = orders.filter(o => o.status === state.orderFilter);
+    }
     if (!orders.length) {
         el.innerHTML = `<div class="empty-state"><div class="empty-icon">📦</div><h3>ยังไม่มีคำสั่งซื้อ</h3><p>เริ่มช้อปปิ้งก็เริ่มต้นคำสั่งซื้อของคุณได้เลย</p><button class="btn-primary" style="display:inline-block;padding:12px 32px;border-radius:8px" onclick="openPage('home')">ช้อปเลย</button></div>`;
         return;
@@ -1362,8 +1367,24 @@ function renderOrders() {
       </div>` : '')
             }
       <div class="order-items">
-        ${o.items.slice(0, 3).map(c => { const p = PRODUCTS.find(x => x.id === c.id); return p ? `<div class="order-item"><div class="order-item-img">${p.emoji}</div><div style="flex:1"><div style="font-size:13px;font-weight:500">${p.name}</div><div style="font-size:12px;color:var(--text-3)">จำนวน ${c.qty} ชิ้น</div></div><div style="color:var(--primary);font-weight:600">฿${formatNum(p.price * c.qty)}</div></div>` : ''; }).join('')}
-        ${o.items.length > 3 ? `<div style="font-size:13px;color:var(--text-3)">+ อีก ${o.items.length - 3} รายการ</div>` : ''}
+        ${o.items.slice(0, 3).map(c => {
+                const p = PRODUCTS.find(x => x.id === c.id);
+                if (!p) return '';
+                const pImg = (p.images && p.images[0]) ? `<img src="${p.images[0]}" style="width:100%;height:100%;object-fit:cover">` :
+                    (p.image ? `<img src="${p.image}" style="width:100%;height:100%;object-fit:cover">` : `<span style="font-size:20px">${p.emoji || '📦'}</span>`);
+                return `
+            <div class="order-item">
+                <div class="order-item-img" style="overflow:hidden; display:flex; align-items:center; justify-content:center; background:#f5f5f5">
+                    ${pImg}
+                </div>
+                <div style="flex:1">
+                    <div style="font-size:13px;font-weight:500">${p.name}</div>
+                    <div style="font-size:12px;color:var(--text-3)">จำนวน ${c.qty} ชิ้น ${c.variant ? `(${c.variant})` : ''}</div>
+                </div>
+                <div style="color:var(--primary);font-weight:600">฿${formatNum(p.price * c.qty)}</div>
+            </div>`;
+            }).join('')}
+        ${o.items.length > 3 ? `<div style="font-size:13px;color:var(--text-3);padding-left:12px">+ อีก ${o.items.length - 3} รายการ</div>` : ''}
       </div>
       <div class="order-card-footer">
         <div style="font-size:12px;color:var(--text-3)">
@@ -1635,6 +1656,7 @@ function socialLogin(provider) {
 
 function logout() {
     state.user = null;
+    state.orders = []; // 🔒 ล้างออเดอร์ออกเพื่อความปลอดภัย
     saveToStorage();
     updateUserUI();
     openPage('home');

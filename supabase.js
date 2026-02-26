@@ -56,7 +56,7 @@ async function saveOnlineProduct(p) {
     try {
         const client = getSupabase();
         const dbData = {
-            id: p.id,
+            id: String(p.id),
             sku: p.sku,
             name: p.name,
             price: p.price,
@@ -71,8 +71,8 @@ async function saveOnlineProduct(p) {
             reviews: p.reviews,
             shop: p.shop,
             shop_badge: p.shopBadge,
-            options: p.options,
-            variations: p.variations || null,
+            options: p.options || [], // ส่งเป็น array โดยตรง (สำหรับ JSONB)
+            variations: p.variations || [], // ส่งเป็น array โดยตรง
             option_title: p.optionTitle,
             description: p.desc,
             image: p.image || null,
@@ -346,7 +346,7 @@ async function saveOnlineOrder(order) {
         const client = getSupabase();
         const dbData = {
             id: order.id,
-            user_id: state.user?.id && typeof state.user.id === 'string' ? state.user.id : null,
+            user_id: order.userId || (state.user?.id && typeof state.user.id === 'string' ? state.user.id : null),
             items: order.items,
             total_amount: order.total,
             discount: order.discount || 0,
@@ -396,6 +396,7 @@ async function fetchOnlineOrders() {
 
         return data.map(o => ({
             id: o.id,
+            userId: o.user_id,
             date: o.created_at ? new Date(o.created_at).toLocaleDateString('th-TH') : o.date,
             items: o.items,
             total: o.total_amount,
