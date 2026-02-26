@@ -75,7 +75,8 @@ async function saveOnlineProduct(p) {
             variations: p.variations || null,
             option_title: p.optionTitle,
             description: p.desc,
-            image: p.image || null
+            image: p.image || null,
+            images: p.images || []
         };
         const { error } = await client.from('products').upsert(dbData);
         if (error) {

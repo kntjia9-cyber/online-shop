@@ -391,11 +391,12 @@ function startCountdown() {
 function productCard(p, isRow = false) {
     const liked = state.wishlist.includes(p.id);
     const discount = p.originalPrice ? Math.round((1 - p.price / p.originalPrice) * 100) : 0;
+    const imgUrl = (p.images && p.images[0]) || p.image;
     return `
   <div class="product-card${isRow ? ' row-card' : ''}" id="pcard-${p.id}">
     <div class="product-img-wrap" onclick="viewProduct(${p.id})">
       <div class="product-emoji">
-        ${p.image ? `<img src="${p.image}" style="width:100%; height:100%; object-fit:cover">` : p.emoji}
+        ${imgUrl ? `<img src="${imgUrl}" style="width:100%; height:100%; object-fit:cover">` : p.emoji}
       </div>
       ${p.badge ? `<span class="product-badge badge-${p.badge}">${p.badge === 'new' ? 'ใหม่' : p.badge === 'hot' ? '🔥ฮิต' : `ลด${discount}%`}</span>` : ''}
       <button class="product-wishlist${liked ? ' liked' : ''}" onclick="toggleWishlist(event,${p.id})">${liked ? '❤️' : '🤍'}</button>
@@ -472,15 +473,18 @@ function viewProduct(id) {
     document.getElementById('product-breadcrumb').innerHTML =
         `<a href="#" onclick="openPage('home')">หน้าหลัก</a> › <a href="#" onclick="filterCategory('${p.category}')">${getCatName(p.category)}</a> › ${p.name.substring(0, 40)}...`;
 
-    document.getElementById('product-main-image').innerHTML = p.image
-        ? `<img src="${p.image}" style="width:100%; height:100%; object-fit:contain">`
+    const pImages = (p.images && p.images.length > 0) ? p.images : (p.image ? [p.image] : []);
+    const mainImg = pImages[0] || null;
+
+    document.getElementById('product-main-image').innerHTML = mainImg
+        ? `<img src="${mainImg}" style="width:100%; height:100%; object-fit:contain">`
         : `<div style="font-size:120px">${p.emoji}</div>`;
 
     document.getElementById('product-thumbnails').innerHTML =
-        [p.image || p.emoji, p.emoji, p.emoji].map((item, i) => {
-            const isImg = p.image && i === 0;
+        [...pImages, p.emoji, p.emoji, p.emoji].slice(0, 4).map((item, i) => {
+            const isImg = item && (String(item).startsWith('data:') || String(item).startsWith('http'));
             return `<div class="thumb${i === 0 ? ' active' : ''}" onclick="selectThumb(this)">
-                ${isImg ? `<img src="${item}" style="width:100%; height:100%; object-fit:cover">` : `<span style="font-size:20px">${item}</span>`}
+                ${isImg ? `<img src="${item}" style="width:100%; height:100%; object-fit:cover">` : `<span style="font-size:20px">${item || p.emoji}</span>`}
             </div>`;
         }).join('');
 
@@ -2193,8 +2197,10 @@ function renderSdAddForm(el, editId) {
     selectedEmoji = p ? p.emoji : '📦';
     const emojis = ['📦', '📱', '💻', '🎧', '👗', '👔', '👟', '💄', '🧴', '✨', '🏡', '🛋️', '☕', '⚽', '🏋️', '🧸', '📚', '🚗', '🐾', '🍜', '🍕', '🥤', '💍', '🎮', '🎵', '🌸', '🎁', '🔧', '⌚', '👜'];
 
-    // 🖼️ เก็บค่ารูปภาพปัจจุบัน (ถ้ามี)
-    window.tempProductImage = p?.image || null;
+    // 🖼️ เก็บค่ารูปภาพปัจจุบัน (ถ้ามี 4 รูป)
+    window.tempProductImages = p?.images || (p?.image ? [p.image] : [null, null, null, null]);
+    // ยืนยันว่าต้องมี 4 ช่อง
+    while (window.tempProductImages.length < 4) window.tempProductImages.push(null);
 
     el.innerHTML = `
         <div class="sd-header">
@@ -2205,17 +2211,17 @@ function renderSdAddForm(el, editId) {
             <h3>📋 ข้อมูลสินค้า</h3>
             
             <div style="background:#f8f9fa; padding:20px; border-radius:12px; margin-bottom:20px; border:1px solid #eee">
-                <label style="display:block; margin-bottom:12px; font-weight:600">รูปภาพสินค้า (แนะนำรูปสี่เหลี่ยมจัตุรัส)</label>
-                <div style="display:flex; gap:20px; align-items:center">
-                    <div id="sp-img-preview" style="width:100px; height:100px; border-radius:10px; border:2px dashed #ccc; background:#fff; display:flex; align-items:center; justify-content:center; overflow:hidden">
-                        ${p?.image ? `<img src="${p.image}" style="width:100%; height:100%; object-fit:cover">` : `<span style="font-size:32px">${selectedEmoji}</span>`}
-                    </div>
-                    <div>
-                        <input type="file" id="sp-img-file" accept="image/*" style="display:none" onchange="handleProductImage(this)">
-                        <button class="btn-sd btn-sd-outline" onclick="document.getElementById('sp-img-file').click()">📸 เลือกรูปภาพ</button>
-                        <p style="font-size:11px; color:#777; margin-top:8px">บีบอัดและปรับขนาดให้อัตโนมัติ (Square format)</p>
-                    </div>
+                <label style="display:block; margin-bottom:12px; font-weight:600">รูปภาพสินค้า (สูงสุด 4 รูป)</label>
+                <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:12px">
+                    ${[0, 1, 2, 3].map(i => `
+                        <div id="sp-img-preview-${i}" onclick="document.getElementById('sp-img-file-${i}').click()" 
+                             style="aspect-ratio:1; border-radius:10px; border:2px dashed #ccc; background:#fff; display:flex; align-items:center; justify-content:center; overflow:hidden; cursor:pointer; position:relative">
+                            ${window.tempProductImages[i] ? `<img src="${window.tempProductImages[i]}" style="width:100%; height:100%; object-fit:cover">` : `<span style="font-size:24px; color:#ccc">+</span>`}
+                            <input type="file" id="sp-img-file-${i}" accept="image/*" style="display:none" onchange="handleProductImage(this, ${i})">
+                        </div>
+                    `).join('')}
                 </div>
+                <p style="font-size:11px; color:#777; margin-top:10px">กดที่ช่องเพื่อเปลี่ยนรูป (บีบอัดและปรับขนาด 400x400 อัตโนมัติ)</p>
             </div>
 
             <div class="form-group">
@@ -2323,18 +2329,20 @@ function renderSdAddForm(el, editId) {
 /**
  * จัดการเมื่อมีการเลือกรูป
  */
-async function handleProductImage(input) {
+async function handleProductImage(input, index) {
     if (input.files && input.files[0]) {
         try {
-            showToast('info', '⌛ กำลังประมวลผลรูปภาพ...');
+            showToast('info', '⌛ กำลังประมวลผลรูปที่ ' + (index + 1) + '...');
             const processed = await processProductImage(input.files[0]);
-            window.tempProductImage = processed;
 
-            const preview = document.getElementById('sp-img-preview');
+            if (!window.tempProductImages) window.tempProductImages = [null, null, null, null];
+            window.tempProductImages[index] = processed;
+
+            const preview = document.getElementById(`sp-img-preview-${index}`);
             if (preview) {
                 preview.innerHTML = `<img src="${processed}" style="width:100%; height:100%; object-fit:cover">`;
             }
-            showToast('success', '✅ ประมวลผลรูปภาพสำเร็จ!');
+            showToast('success', '✅ ประมวลผลรูปสำเร็จ!');
         } catch (err) {
             console.error(err);
             showToast('error', '❌ ไม่สามารถประมวลผลรูปภาพได้');
@@ -2367,11 +2375,6 @@ function pickEmoji(el, emoji) {
     el.classList.add('active');
     selectedEmoji = emoji;
 
-    // ถ้าไม่มีรูปภาพ ให้เปลี่ยน Preview เป็น Emoji
-    if (!window.tempProductImage) {
-        const preview = document.getElementById('sp-img-preview');
-        if (preview) preview.innerHTML = `<span style="font-size:32px">${emoji}</span>`;
-    }
 }
 
 async function saveProduct() {
@@ -2425,16 +2428,18 @@ async function saveProduct() {
     const finalSku = sku || ('SN-' + Math.random().toString(36).substr(2, 6).toUpperCase());
 
     let pData;
+    const finalImages = window.tempProductImages ? window.tempProductImages.filter(img => img !== null) : [];
+
     if (editingProductId) {
         const idx = sellerProducts.findIndex(p => String(p.id) === String(editingProductId));
         if (idx >= 0) {
-            pData = { ...sellerProducts[idx], sku: finalSku, name, price, stock, category, desc, originalPrice, shop, shopBadge, tags, badge, optionTitle, options, variations, emoji: selectedEmoji, image: window.tempProductImage };
+            pData = { ...sellerProducts[idx], sku: finalSku, name, price, stock, category, desc, shop, shopBadge, tags, badge, optionTitle, options, variations, emoji: selectedEmoji, images: finalImages, image: finalImages[0] || null };
             sellerProducts[idx] = pData;
             showToast('success', '✅ แก้ไขสินค้าเรียบร้อย!');
         }
     } else {
         const newId = Date.now();
-        pData = { id: newId, sku: finalSku, name, price, originalPrice, stock, category, desc, shop, shopBadge, tags, badge, optionTitle, options, variations, emoji: selectedEmoji, image: window.tempProductImage, rating: 5.0, sold: 0, reviews: [], specs: {} };
+        pData = { id: newId, sku: finalSku, name, price, originalPrice, stock, category, desc, shop, shopBadge, tags, badge, optionTitle, options, variations, emoji: selectedEmoji, images: finalImages, image: finalImages[0] || null, rating: 5.0, sold: 0, reviews: [], specs: {} };
         sellerProducts.push(pData);
         showToast('success', '🎉 เพิ่มสินค้าใหม่สำเร็จ!');
     }
