@@ -402,14 +402,19 @@ async function fetchOnlineOrders() {
             }
         }
 
-        // ดึงออเดอร์ทั้งหมดมาก่อน แล้วค่อยไปกรองที่หน้าเครื่อง เพื่อรองรับระบบ Guest/Phone Matching
+        // ดึงออเดอร์ทั้งหมดมาก่อน เพื่อมาคัดกรองที่หน้าเครื่อง (ป้องกันปัญหา ID Mismatch)
         const { data, error } = await query.order('created_at', { ascending: false });
         if (error) {
             console.error('❌ Supabase Fetch Orders Error:', error);
             throw error;
         }
 
-        console.log(`📦 Cloud returned ${data.length} total orders. Mapping results...`);
+        if (data && data.length > 0) {
+            console.log(`✅ Found ${data.length} orders in Cloud for user.`);
+            if (window.showToast) showToast('info', `☁️ ซิงค์ออเดอร์จาก Cloud สำเร็จ (${data.length} รายการ)`);
+        } else {
+            console.log('📦 No orders found in Cloud for this user.');
+        }
 
         return data.map(o => ({
             id: o.id,

@@ -1323,18 +1323,21 @@ function renderOrders() {
     // โหลด orders ล่าสุดจาก localStorage ทุกครั้ง เพื่อให้ tracking number ที่ seller บันทึกแสดงในหน้าลูกค้าเสมอ
     const freshState = JSON.parse(localStorage.getItem('shopnow_state') || '{}');
     if (freshState.orders) state.orders = freshState.orders;
-    // 🔒 กรองเฉพาะออเดอร์ที่เป็นของ User คนนี้จริงๆ หรือออเดอร์ Guest ที่มีเบอร์โทรตรงกัน
+    // 🔒 กรองเฉพาะออเดอร์ที่เกี่ยวข้องกับเบอร์โทรหรือไอดีเรา
     let orders = state.orders.filter(o => {
         if (!state.user) return false;
-
-        const myId = state.user.id;
-        const myAltId = myId.startsWith('p-') ? myId.replace('p-', 'phone-') : myId.replace('phone-', 'p-');
+        const myId = String(state.user.id);
         const myPhone = state.user.phone ? state.user.phone.replace(/[^0-9]/g, '') : (myId.includes('-') ? myId.split('-')[1] : '');
 
-        const isOwner = o.userId === myId || o.userId === myAltId;
-        const isPhoneMatch = o.address && myPhone && o.address.includes(myPhone);
+        // เช็ค ID ตรงกัน (ไม่สน prefix) หรือ เบอร์โทรในที่อยู่ตรงกัน
+        const orderUserId = String(o.userId || '');
+        const idMatch = (orderUserId && myPhone && orderUserId.includes(myPhone)) ||
+            (orderUserId && myId && (orderUserId.includes(myId) || myId.includes(orderUserId)));
 
-        return isOwner || isPhoneMatch;
+        const orderAddress = String(o.address || '');
+        const phoneMatch = orderAddress && myPhone && orderAddress.replace(/[^0-9]/g, '').includes(myPhone);
+
+        return idMatch || phoneMatch;
     });
 
     if (state.orderFilter !== 'all') {
