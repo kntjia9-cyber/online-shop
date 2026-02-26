@@ -1397,7 +1397,7 @@ function renderOrders() {
                     <div style="font-size:13px;font-weight:500">${p.name}</div>
                     <div style="font-size:12px;color:var(--text-3)">จำนวน ${c.qty} ชิ้น ${c.variant ? `(${c.variant})` : ''}</div>
                 </div>
-                <div style="color:var(--primary);font-weight:600">฿${formatNum(p.price * c.qty)}</div>
+                <div style="color:var(--primary);font-weight:600">฿${formatNum((c.price || p.price) * c.qty)}</div>
             </div>`;
             }).join('')}
         ${o.items.length > 3 ? `<div style="font-size:13px;color:var(--text-3);padding-left:12px">+ อีก ${o.items.length - 3} รายการ</div>` : ''}
