@@ -2262,9 +2262,40 @@ function renderSdAddForm(el, editId) {
                 <textarea id="sp-desc" rows="4" placeholder="อธิบายสินค้า จุดเด่น วัสดุ การใช้งาน...">${p?.desc || ''}</textarea>
             </div>
             <div class="form-group">
-                <label>ตัวเลือกสินค้าและราคาเฉพาะ (ถ้ามี) <small style="color:#e67e22">(เช่น ความจุ / 64GB:15000, 128GB:18000)</small></label>
-                <input id="sp-options" placeholder="เช่น สี / แดง:500, น้ำเงิน:550 หรือ รุ่น / Basic:1000, Pro:2000" value="${p?.optionTitle ? p.optionTitle + ' / ' + (p.variations ? p.variations.map(v => `${v.name}:${v.price}`).join(', ') : p.options.join(', ')) : (p?.options ? p.options.join(', ') : (state.user.defaultOptions || ''))}" />
-                <p style="font-size:11px; color:#999; margin-top:4px">รูปแบบ: [หัวข้อ] / [ชื่อตัวเลือก1]:[ราคา], [ชื่อตัวเลือก2]:[ราคา]</p>
+                <label>รายละเอียดตัวเลือกสินค้า <small style="color:#e67e22">(เช่น หัวข้อ: ความจุ, ตัวเลือกในตาราง: 64GB, 128GB)</small></label>
+                <div style="background:#fff; border:1px solid #ddd; border-radius:12px; padding:15px">
+                    <div class="form-group" style="margin-bottom:12px">
+                        <label style="font-size:12px; color:#666">ชื่อหัวข้อตัวเลือก (เช่น สี, ขนาด, ความจุ)</label>
+                        <input id="sp-option-title" placeholder="เช่น ความจุ" value="${p?.optionTitle || 'ตัวเลือก'}" />
+                    </div>
+                    
+                    <div id="variation-container">
+                        <div style="display:grid; grid-template-columns: 1fr 120px 40px; gap:8px; margin-bottom:8px; font-size:12px; font-weight:600; color:#888">
+                            <div>ชื่อตัวเลือกย่อย</div>
+                            <div>ราคา (฿)</div>
+                            <div></div>
+                        </div>
+                        <div id="variation-list">
+                            ${p?.variations && p.variations.length > 0
+            ? p.variations.map(v => `
+                                    <div class="variation-row" style="display:grid; grid-template-columns: 1fr 120px 40px; gap:8px; margin-bottom:8px">
+                                        <input class="sp-var-name" placeholder="เช่น 64GB" value="${v.name}" />
+                                        <input type="number" class="sp-var-price" placeholder="ราคา" value="${v.price}" />
+                                        <button class="btn-sd btn-sd-outline" onclick="this.parentElement.remove()" style="padding:0; border-color:#ff7675; color:#ff7675">🗑️</button>
+                                    </div>
+                                `).join('')
+            : `
+                                    <div class="variation-row" style="display:grid; grid-template-columns: 1fr 120px 40px; gap:8px; margin-bottom:8px">
+                                        <input class="sp-var-name" placeholder="เช่น 64GB" value="" />
+                                        <input type="number" class="sp-var-price" placeholder="ราคา" value="" />
+                                        <button class="btn-sd btn-sd-outline" onclick="this.parentElement.remove()" style="padding:0; border-color:#ff7675; color:#ff7675">🗑️</button>
+                                    </div>
+                                `
+        }
+                        </div>
+                        <button class="btn-sd btn-sd-outline" style="width:100%; border-style:dashed; margin-top:5px" onclick="addVariationRow()">➕ เพิ่มตัวเลือกย่อย</button>
+                    </div>
+                </div>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
                 <div class="form-group">
@@ -2311,6 +2342,26 @@ async function handleProductImage(input) {
     }
 }
 
+/**
+ * เพิ่มแถวตัวเลือกใหม่ในตาราง
+ */
+window.addVariationRow = function () {
+    const list = document.getElementById('variation-list');
+    if (!list) return;
+    const row = document.createElement('div');
+    row.className = 'variation-row';
+    row.style.display = 'grid';
+    row.style.gridTemplateColumns = '1fr 120px 40px';
+    row.style.gap = '8px';
+    row.style.marginBottom = '8px';
+    row.innerHTML = `
+        <input class="sp-var-name" placeholder="เช่น 64GB" value="" />
+        <input type="number" class="sp-var-price" placeholder="ราคา" value="" />
+        <button class="btn-sd btn-sd-outline" onclick="this.parentElement.remove()" style="padding:0; border-color:#ff7675; color:#ff7675">🗑️</button>
+    `;
+    list.appendChild(row);
+}
+
 function pickEmoji(el, emoji) {
     document.querySelectorAll('.emoji-opt').forEach(e => e.classList.remove('active'));
     el.classList.add('active');
@@ -2332,42 +2383,27 @@ async function saveProduct() {
     const desc = document.getElementById('sp-desc')?.value.trim();
     const originalPrice = parseFloat(document.getElementById('sp-original-price')?.value) || null;
     const shop = document.getElementById('sp-shop')?.value.trim() || (state.user.shopName || (state.user.name + ' Shop'));
-    const optionsRaw = document.getElementById('sp-options')?.value.trim();
-    let optionTitle = 'ตัวเลือก';
+    let optionTitle = document.getElementById('sp-option-title')?.value.trim() || 'ตัวเลือก';
     let options = [];
     let variations = [];
 
-    if (optionsRaw) {
-        if (optionsRaw.includes('/')) {
-            const parts = optionsRaw.split('/');
-            optionTitle = parts[0].trim();
-            const optStrings = parts[1].split(',').map(s => s.trim()).filter(s => s);
-            optStrings.forEach(os => {
-                if (os.includes(':')) {
-                    const [vName, vPrice] = os.split(':');
-                    variations.push({ name: vName.trim(), price: parseFloat(vPrice.trim()) });
-                    options.push(vName.trim());
-                } else {
-                    variations.push({ name: os, price: price });
-                    options.push(os);
-                }
-            });
-        } else {
-            const optStrings = optionsRaw.split(',').map(s => s.trim()).filter(s => s);
-            optStrings.forEach(os => {
-                if (os.includes(':')) {
-                    const [vName, vPrice] = os.split(':');
-                    variations.push({ name: vName.trim(), price: parseFloat(vPrice.trim()) });
-                    options.push(vName.trim());
-                } else {
-                    variations.push({ name: os, price: price });
-                    options.push(os);
-                }
-            });
-        }
-    }
+    // ดึงข้อมูลจากตารางตัวเลือก
+    document.querySelectorAll('.variation-row').forEach(row => {
+        const vNameInput = row.querySelector('.sp-var-name');
+        const vPriceInput = row.querySelector('.sp-var-price');
+        const vName = vNameInput ? vNameInput.value.trim() : '';
+        const vPrice = vPriceInput ? parseFloat(vPriceInput.value) : NaN;
 
-    // Fallback: If no variations, create one with the base price
+        if (vName) {
+            variations.push({
+                name: vName,
+                price: isNaN(vPrice) ? price : vPrice
+            });
+            options.push(vName);
+        }
+    });
+
+    // Fallback: หากไม่ได้ระบุในตาราง ให้สร้างตัวเลือกเริ่มต้น
     if (variations.length === 0) {
         variations.push({ name: 'ค่าเริ่มต้น', price: price });
         options.push('ค่าเริ่มต้น');
