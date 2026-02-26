@@ -1514,6 +1514,12 @@ function renderProfile() {
     <div class="form-group"><label>วันเกิด</label><input type="date" id="profile-dob"/></div>
     <div class="form-group"><label>เพศ</label><select id="profile-gender"><option>ชาย</option><option>หญิง</option><option>ไม่ระบุ</option></select></div>
     <div class="form-group"><label>ที่อยู่สำหรับจัดส่ง</label><textarea id="profile-address" rows="3" style="width:100%; padding:12px; border:1px solid var(--border); border-radius:8px; font-family:inherit">${state.user.address || ''}</textarea></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group"><label>จังหวัด</label><select id="profile-province" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;background:var(--bg-2)">
+            ${['กรุงเทพมหานคร', 'เชียงใหม่', 'เชียงราย', 'ลำปาง', 'ลำพูน', 'แม่ฮ่องสอน', 'น่าน', 'พะเยา', 'แพร่', 'อุตรดิตถ์', 'ตาก', 'สุโขทัย', 'พิษณุโลก', 'เพชรบูรณ์', 'พิจิตร', 'กำแพงเพชร', 'นครสวรรค์', 'อุทัยธานี', 'ชัยนาท', 'สิงห์บุรี', 'อ่างทอง', 'พระนครศรีอยุธยา', 'สระบุรี', 'ลพบุรี', 'นครนายก', 'ปทุมธานี', 'นนทบุรี', 'นครปฐม', 'สมุทรสาคร', 'สมุทรสงคราม', 'สมุทรปราการ', 'กาญจนบุรี', 'ราชบุรี', 'เพชรบุรี', 'ประจวบคีรีขันธ์', 'สุพรรณบุรี', 'ชลบุรี', 'ระยอง', 'จันทบุรี', 'ตราด', 'ฉะเชิงเทรา', 'ปราจีนบุรี', 'สระแก้ว', 'นครราชสีมา', 'บุรีรัมย์', 'สุรินทร์', 'ศรีสะเกษ', 'อุบลราชธานี', 'ยโสธร', 'อำนาจเจริญ', 'มุกดาหาร', 'ร้อยเอ็ด', 'ขอนแก่น', 'กาฬสินธุ์', 'มหาสารคาม', 'สกลนคร', 'นครพนม', 'หนองคาย', 'บึงกาฬ', 'หนองบัวลำภู', 'อุดรธานี', 'เลย', 'ชุมพร', 'ระนอง', 'สุราษฎร์ธานี', 'นครศรีธรรมราช', 'กระบี่', 'พังงา', 'ภูเก็ต', 'ตรัง', 'พัทลุง', 'สตูล', 'สงขลา', 'ปัตตานี', 'ยะลา', 'นราธิวาส'].map(p => `<option value="${p}" ${(state.user.province || '') === p ? 'selected' : ''}>${p}</option>`).join('')}
+        </select></div>
+        <div class="form-group"><label>รหัสไปรษณีย์</label><input id="profile-zip" placeholder="10XXX" value="${state.user.zip || ''}" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;box-sizing:border-box" /></div>
+    </div>
     
     ${!state.user.isSeller ? `
     <div style="background:#fff3e0; padding:20px; border-radius:12px; border-left:4px solid #ff9800; margin-top:20px">
@@ -1543,15 +1549,19 @@ async function saveProfile() {
     const newPhone = document.getElementById('profile-phone')?.value || state.user.phone;
     const newEmail = document.getElementById('profile-email')?.value || state.user.email;
     const newAddress = document.getElementById('profile-address')?.value || '';
+    const newProvince = document.getElementById('profile-province')?.value || '';
+    const newZip = document.getElementById('profile-zip')?.value || '';
 
     state.user.name = newName;
     state.user.phone = newPhone;
     state.user.email = newEmail;
     state.user.address = newAddress;
+    state.user.province = newProvince;
+    state.user.zip = newZip;
 
     // ☁️ อัปเดตขึ้น Cloud ถ้าเป็นสมาชิกออนไลน์
     if (state.user.email && state.user.id.length > 20) { // Check if it's a UUID from Supabase
-        await updateUserOnline(newName, { phone: newPhone, address: newAddress });
+        await updateUserOnline(newName, { phone: newPhone, address: newAddress, province: newProvince, zip: newZip });
     }
 
     syncUserToGlobalList(); // ✅ อัปเดตข้อมูลลูกค้าในหน้าแอดมินด้วย

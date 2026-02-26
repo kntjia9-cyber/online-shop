@@ -140,7 +140,9 @@ async function getOnlineUserProfile(userId) {
             isSeller: data.is_seller,
             shopName: data.shop_name,
             isAdmin: data.is_admin,
-            address: data.address || ''
+            address: data.address || '',
+            province: data.province || '',
+            zip: data.zip || ''
         };
     } catch (err) {
         return null;
@@ -220,12 +222,14 @@ async function saveOnlineUser(user) {
             email: user.email,
             name: user.name,
             phone: user.phone || '',
-            password: user.pass || '', // เก็บไว้สำหรับ Login ผ่านเบอร์ใน Cloud
+            password: user.pass || '',
             role: user.role || 'user',
             is_seller: user.isSeller || false,
             shop_name: user.shopName || '',
             is_admin: user.isAdmin || false,
             address: user.address || '',
+            province: user.province || '',
+            zip: user.zip || '',
             last_login: new Date().toISOString()
         };
 
