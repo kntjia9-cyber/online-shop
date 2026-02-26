@@ -1323,21 +1323,27 @@ function renderOrders() {
     // โหลด orders ล่าสุดจาก localStorage ทุกครั้ง เพื่อให้ tracking number ที่ seller บันทึกแสดงในหน้าลูกค้าเสมอ
     const freshState = JSON.parse(localStorage.getItem('shopnow_state') || '{}');
     if (freshState.orders) state.orders = freshState.orders;
+    const el = document.getElementById('orders-list');
+    if (!el) return;
+
     // 🔒 กรองเฉพาะออเดอร์ที่เกี่ยวข้องกับเบอร์โทรหรือไอดีเรา
     let orders = state.orders.filter(o => {
         if (!state.user) return false;
-        const myId = String(state.user.id);
-        const myPhone = state.user.phone ? state.user.phone.replace(/[^0-9]/g, '') : (myId.includes('-') ? myId.split('-')[1] : '');
 
-        // เช็ค ID ตรงกัน (ไม่สน prefix) หรือ เบอร์โทรในที่อยู่ตรงกัน
-        const orderUserId = String(o.userId || '');
-        const idMatch = (orderUserId && myPhone && orderUserId.includes(myPhone)) ||
-            (orderUserId && myId && (orderUserId.includes(myId) || myId.includes(orderUserId)));
+        // ฟังก์ชันดึงเลข 10 หลักสุดท้าย
+        const getTenDigits = (str) => {
+            const digits = String(str || '').replace(/[^0-9]/g, '');
+            return digits.length >= 10 ? digits.slice(-10) : digits;
+        };
 
-        const orderAddress = String(o.address || '');
-        const phoneMatch = orderAddress && myPhone && orderAddress.replace(/[^0-9]/g, '').includes(myPhone);
+        const myDigits = getTenDigits(state.user.phone || state.user.id);
+        if (!myDigits) return false;
 
-        return idMatch || phoneMatch;
+        const orderUserIdDigits = getTenDigits(o.userId);
+        const orderAddrDigits = getTenDigits(o.address);
+
+        // ถ้าเลข 10 หลักตรงกับไอดีคนซื้อ หรือ ตรงกับเบอร์ในที่อยู่ ให้ถือว่าเป็นเจ้าของ
+        return (orderUserIdDigits === myDigits) || (orderAddrDigits.includes(myDigits));
     });
 
     if (state.orderFilter !== 'all') {
