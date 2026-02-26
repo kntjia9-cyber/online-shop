@@ -739,6 +739,7 @@ function renderPlatformOrders(el) {
                         <th>เลขที่ออเดอร์</th>
                         <th>วันที่สั่งซื้อ</th>
                         <th>ข้อมูลลูกค้า</th>
+                        <th>ร้านค้า</th>
                         <th>ยอดรวม</th>
                         <th>สถานะ</th>
                         <th>จัดการ</th>
@@ -752,6 +753,15 @@ function renderPlatformOrders(el) {
                             <td>
                                 <div style="font-size:13px">${o.address?.split(' | ')[0] || 'Unknown'}</div>
                                 <div style="font-size:11px; color:#999">${o.address?.split(' | ')[1] || ''}</div>
+                            </td>
+                            <td>
+                                ${(() => {
+            const shopNames = [...new Set(o.items.map(item => {
+                const p = globalState.allProducts.find(px => String(px.id) === String(item.id));
+                return p?.shop || item.shop || 'ทั่วไป';
+            }))];
+            return shopNames.map(sn => `<div style="font-size:11px; margin-bottom:2px"><span style="background:#f0f4f8; color:#334e68; padding:2px 6px; border-radius:4px; font-weight:600">${sn}</span></div>`).join('');
+        })()}
                             </td>
                             <td style="color:var(--admin-primary); font-weight:700">฿${o.total.toLocaleString()}</td>
                             <td>${getStatusBadge(o.status)}</td>

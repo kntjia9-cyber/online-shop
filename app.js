@@ -649,7 +649,7 @@ function addToCart(e, id) {
     if (!p) return;
     const existing = state.cart.find(c => c.id === id && c.variant === 'ค่าเริ่มต้น');
     if (existing) existing.qty++;
-    else state.cart.push({ id, qty: 1, variant: 'ค่าเริ่มต้น', price: p.price });
+    else state.cart.push({ id, qty: 1, variant: 'ค่าเริ่มต้น', price: p.price, shop: p.shop });
     updateCartBadge();
     saveToStorage();
     showToast('success', `🛒 เพิ่ม "${p.name.substring(0, 20)}..." ลงตะกร้าแล้ว`);
@@ -675,7 +675,8 @@ function addToCartFromDetail() {
             id: p.id,
             qty: state.productQty,
             variant: selectedVariant,
-            price: currentPrice
+            price: currentPrice,
+            shop: p.shop
         });
     }
     updateCartBadge();
@@ -1441,6 +1442,7 @@ function renderOrders() {
                 </div>
                 <div style="flex:1">
                     <div style="font-size:13px;font-weight:500">${p.name}</div>
+                    <div style="font-size:11px;color:var(--primary);margin:2px 0">🏪 ร้านค้า: ${p.shop || 'ทั่วไป'}</div>
                     <div style="font-size:12px;color:var(--text-3)">จำนวน ${c.qty} ชิ้น ${c.variant ? `(${c.variant})` : ''}</div>
                 </div>
                 <div style="color:var(--primary);font-weight:600">฿${formatNum((c.price || p.price) * c.qty)}</div>
