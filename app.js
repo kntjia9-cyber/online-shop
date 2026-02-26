@@ -2713,6 +2713,7 @@ function renderSdOrders(el) {
                             <div style="display:flex;gap:4px">
                                 <input id="track-${o.id}" type="text" placeholder="เลขแทร็กกิ้ง" value="${o.trackingNum || ''}" style="width:100px;font-size:11px;padding:4px;border:1px solid var(--border);border-radius:4px">
                                 <button class="btn-sd btn-sd-primary" style="padding:4px 8px;font-size:10px" onclick="updateTracking('${o.id}')">💾</button>
+                                <button class="btn-sd" style="padding:4px 8px;font-size:10px;background:#607d8b;color:#fff" onclick="printOrder('${o.id}')">🖨️ พิมพ์</button>
                             </div>
                         </div>
                     </td>
@@ -2738,6 +2739,142 @@ function updateTracking(orderId) {
         showToast('success', '✅ บันทึกเลข Tracking เรียบร้อย');
         sdTab('orders');
     }
+}
+
+function printOrder(orderId) {
+    const o = state.orders.find(order => String(order.id) === String(orderId));
+    if (!o) return;
+
+    const myName = state.user?.name || "";
+    const possibleShopNames = [
+        state.user?.shopName,
+        myName + "'s Shop",
+        myName + " Shop"
+    ].filter(Boolean);
+
+    const isMyProduct = (itemId) => {
+        const sellerProductIds = sellerProducts.map(p => String(p.id));
+        if (sellerProductIds.includes(String(itemId))) return true;
+        const prod = PRODUCTS.find(p => String(p.id) === String(itemId));
+        return prod && (possibleShopNames.includes(prod.shop) || prod.seller_id === state.user?.id);
+    };
+
+    const myItems = o.items.filter(item => isMyProduct(item.id));
+    const orderSubtotal = o.items.reduce((s, i) => {
+        const price = i.price || (PRODUCTS.find(x => String(x.id) === String(i.id))?.price || 0);
+        return s + (price * i.qty);
+    }, 0);
+    const discountRate = orderSubtotal > 0 ? (o.discount || 0) / orderSubtotal : 0;
+    const myGross = myItems.reduce((sum, item) => {
+        const price = item.price || (PRODUCTS.find(p => String(p.id) === String(item.id))?.price || 0);
+        return sum + (price * item.qty);
+    }, 0);
+    const myShare = orderSubtotal > 0 ? myGross / orderSubtotal : 1;
+    const myNet = myGross * (1 - discountRate);
+    const myShipping = Math.round((o.shipping || 0) * myShare);
+    const myTotal = myNet + myShipping;
+
+    const printWindow = window.open('', '_blank');
+    const html = `
+        <html>
+        <head>
+            <title>ใบสั่งซื้อ #${o.id}</title>
+            <style>
+                body { font-family: 'Sarabun', sans-serif; padding: 40px; color: #333; line-height: 1.6; }
+                .header { display: flex; justify-content: space-between; border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 20px; }
+                .shop-info h1 { margin: 0; color: #1a73e8; }
+                .order-info { text-align: right; }
+                .section { margin-bottom: 30px; }
+                .section-title { font-weight: bold; border-bottom: 1px solid #ddd; margin-bottom: 10px; padding-bottom: 5px; }
+                table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+                th, td { padding: 12px; border-bottom: 1px solid #eee; text-align: left; }
+                th { background: #f8f9fa; }
+                .total-box { margin-left: auto; width: 300px; margin-top: 20px; }
+                .total-row { display: flex; justify-content: space-between; padding: 5px 0; }
+                .total-row.grand { border-top: 2px solid #333; margin-top: 10px; padding-top: 10px; font-weight: bold; font-size: 1.2em; color: #d32f2f; }
+                .footer { margin-top: 50px; text-align: center; font-size: 12px; color: #999; border-top: 1px solid #eee; padding-top: 20px; }
+                @media print { .no-print { display: none; } }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <div class="shop-info">
+                    <h1>${state.user.shopName || state.user.name + "'s Shop"}</h1>
+                    <p>ใบกำกับภาษีอย่างย่อ / ใบเสร็จรับเงิน</p>
+                </div>
+                <div class="order-info">
+                    <h2 style="margin:0">เลขที่ #${o.id}</h2>
+                    <p>วันที่สั่งซื้อ: ${o.date}</p>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">📍 ข้อมูลลูกค้า</div>
+                <p>${o.address.replace(/ \| /g, '<br>')}</p>
+            </div>
+
+            <div class="section">
+                <div class="section-title">📦 รายการสินค้า</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>สินค้า</th>
+                            <th>ตัวเลือก</th>
+                            <th>จำนวน</th>
+                            <th>ราคาต่อชิ้น</th>
+                            <th>ยอดรวม</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${myItems.map(item => {
+        const p = PRODUCTS.find(px => String(px.id) === String(item.id));
+        const price = item.price || p?.price || 0;
+        return `
+                                <tr>
+                                    <td>${p?.name || 'Unknown Item'}</td>
+                                    <td>${item.variant || '-'}</td>
+                                    <td>${item.qty}</td>
+                                    <td>฿${price.toLocaleString()}</td>
+                                    <td>฿${(price * item.qty).toLocaleString()}</td>
+                                </tr>
+                            `;
+    }).join('')}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="total-box">
+                <div class="total-row">
+                    <span>ยอดรวมสินค้า:</span>
+                    <span>฿${myGross.toLocaleString()}</span>
+                </div>
+                <div class="total-row">
+                    <span>ส่วนลด:</span>
+                    <span>-฿${(myGross - myNet).toLocaleString()}</span>
+                </div>
+                <div class="total-row">
+                    <span>ค่าจัดส่ง:</span>
+                    <span>฿${myShipping.toLocaleString()}</span>
+                </div>
+                <div class="total-row grand">
+                    <span>ยอดสุทธิ:</span>
+                    <span>฿${myTotal.toLocaleString()}</span>
+                </div>
+            </div>
+
+            <div class="footer">
+                <p>ขอบคุณที่ใช้บริการร้านของเรา</p>
+                <p>พิมพ์เมื่อวันที่ ${new Date().toLocaleString('th-TH')}</p>
+            </div>
+
+            <div class="no-print" style="margin-top:40px; text-align:center">
+                <button onclick="window.print()" style="padding:15px 40px; background:#1a73e8; color:#fff; border:none; border-radius:8px; cursor:pointer; font-size:16px; font-weight:bold">🖨️ สั่งพิมพ์ใบสั่งซื้อ</button>
+            </div>
+        </body>
+        </html>
+    `;
+    printWindow.document.write(html);
+    printWindow.document.close();
 }
 
 async function updateOrderStatus(orderId, newStatus) {
