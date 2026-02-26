@@ -155,24 +155,47 @@ async function initSellerProducts() {
 
     // 2. ☁️ ดึงสินค้าจาก Supabase
     const onlineProducts = await fetchOnlineProducts();
+    const myShopName = state.user?.shopName || (state.user ? state.user.name + "'s Shop" : "");
+
     if (onlineProducts.length > 0) {
-        sellerProducts = onlineProducts;
+        // ✅ โหลดสินค้าทั้งหมดจาก Cloud เข้าสู่ PRODUCTS (สำหรับตลาดกลาง)
+        onlineProducts.forEach(sp => {
+            const sid = String(sp.id);
+            const idx = PRODUCTS.findIndex(p => String(p.id) === sid);
+            if (idx >= 0) {
+                Object.assign(PRODUCTS[idx], sp);
+            } else {
+                PRODUCTS.push(sp);
+            }
+        });
+
+        // ✅ สำหรับ Dashboard ให้กรองเฉพาะของตนเองใส่ใน sellerProducts
+        if (state.user) {
+            sellerProducts = onlineProducts.filter(p => p.shop === myShopName);
+        } else {
+            sellerProducts = [];
+        }
     } else {
         // Fallback: ถ้าเน็ตหลุดหรือไม่มีใน Cloud ให้ใช้ Local ไปก่อน (สำหรับช่วงทรานสิชัน)
         const savedSeller = localStorage.getItem('shopnow_seller_products');
-        if (savedSeller) sellerProducts = JSON.parse(savedSeller);
-    }
+        if (savedSeller) {
+            const allSaved = JSON.parse(savedSeller);
+            // กรองสินค้าของฉันสำหรับ Dashboard
+            if (state.user) {
+                sellerProducts = allSaved.filter(p => p.shop === myShopName);
+            } else {
+                sellerProducts = [];
+            }
 
-    // รวมเข้า PRODUCTS หลัก
-    sellerProducts.forEach(sp => {
-        const sid = String(sp.id);
-        const idx = PRODUCTS.findIndex(p => String(p.id) === sid);
-        if (idx >= 0) {
-            Object.assign(PRODUCTS[idx], sp);
-        } else {
-            PRODUCTS.push(sp);
+            // รวมเข้า PRODUCTS หลัก
+            allSaved.forEach(sp => {
+                const sid = String(sp.id);
+                const idx = PRODUCTS.findIndex(p => String(p.id) === sid);
+                if (idx >= 0) Object.assign(PRODUCTS[idx], sp);
+                else PRODUCTS.push(sp);
+            });
         }
-    });
+    }
 }
 
 function loadFromStorage() {
@@ -1459,6 +1482,10 @@ function renderProfile() {
 
 function upgradeToSeller() {
     state.user.isSeller = true;
+    // มั่นใจว่ามีชื่อร้าน
+    if (!state.user.shopName) {
+        state.user.shopName = state.user.name + "'s Shop";
+    }
     syncUserToGlobalList(); // ✅ บันทึกเข้าถังแอดมินทันที
     saveToStorage();
     renderProfile();
@@ -2044,7 +2071,7 @@ async function deleteBanner(id) {
 
 function renderSdOverview(el) {
     const sellerProductIds = sellerProducts.map(p => String(p.id));
-    const myShopName = state.user?.shopName || (state.user?.name + " Shop");
+    const myShopName = state.user?.shopName || (state.user ? state.user.name + "'s Shop" : "");
 
     // helper: ออเดอร์นี้มีสินค้าของร้านเราไหม?
     function orderBelongsToSeller(order) {
@@ -2464,7 +2491,7 @@ async function saveProduct() {
     const category = document.getElementById('sp-category')?.value;
     const desc = document.getElementById('sp-desc')?.value.trim();
     const originalPrice = parseFloat(document.getElementById('sp-original-price')?.value) || null;
-    const shop = document.getElementById('sp-shop')?.value.trim() || (state.user.shopName || (state.user.name + ' Shop'));
+    const shop = document.getElementById('sp-shop')?.value.trim() || (state.user.shopName || (state.user.name + "'s Shop"));
     let optionTitle = document.getElementById('sp-option-title')?.value.trim() || 'ตัวเลือก';
     let options = [];
     let variations = [];
