@@ -565,10 +565,10 @@
             <div class="modal-logo">🛒 ShopNow</div>
             <h2>เข้าสู่ระบบ</h2>
             <div class="tabs-auth">
-                <button class="auth-tab active" onclick="switchAuthTab('phone')">เบอร์โทร</button>
-                <button class="auth-tab" onclick="switchAuthTab('email')">อีเมล</button>
+                <button class="auth-tab" onclick="switchAuthTab('phone')">เบอร์โทร</button>
+                <button class="auth-tab active" onclick="switchAuthTab('email')">อีเมล</button>
             </div>
-            <div id="auth-phone">
+            <div id="auth-phone" class="hidden">
                 <div class="form-group">
                     <label>เบอร์โทรศัพท์</label>
                     <input type="tel" id="login-phone" placeholder="08X-XXX-XXXX" />
@@ -581,7 +581,7 @@
                     </div>
                 </div>
             </div>
-            <div id="auth-email" class="hidden">
+            <div id="auth-email">
                 <div class="form-group">
                     <label>อีเมล</label>
                     <input type="email" id="login-email" placeholder="example@email.com" />
