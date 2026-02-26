@@ -136,7 +136,18 @@ function refreshCurrentView() {
     } else if (page === 'shop' && state.lastViewedShop) {
         viewShop(state.lastViewedShop);
     } else if (page === 'seller-dash') {
-        initSellerProducts().then(() => sdTab(state.sellerTab));
+        // ✅ ระบบ "Deep Sync": โหลดโปรไฟล์จาก DB ใหม่ทุกครั้งที่เข้าหน้า Seller เพื่อความชัวร์
+        if (state.user && state.user.id) {
+            getOnlineUserProfile(state.user.id).then(profile => {
+                if (profile) {
+                    state.user = { ...state.user, ...profile };
+                    saveToStorage();
+                }
+                initSellerProducts().then(() => sdTab(state.sellerTab));
+            });
+        } else {
+            initSellerProducts().then(() => sdTab(state.sellerTab));
+        }
     } else if (page === 'cart') {
         renderCart();
     }
@@ -155,39 +166,51 @@ async function initSellerProducts() {
 
     // 2. ☁️ ดึงสินค้าจาก Supabase
     const onlineProducts = await fetchOnlineProducts();
-    const myShopName = state.user?.shopName || (state.user ? state.user.name + "'s Shop" : "");
+
+    // ✅ มาตรฐานชื่อร้าน: ตรวจสอบหลายรูปแบบเพื่อความยืดหยุ่น (Healing System)
+    const myName = state.user?.name || "";
+    const possibleShopNames = [
+        state.user?.shopName,
+        myName + "'s Shop",
+        myName + " Shop"
+    ].filter(Boolean);
 
     if (onlineProducts.length > 0) {
         // ✅ โหลดสินค้าทั้งหมดจาก Cloud เข้าสู่ PRODUCTS (สำหรับตลาดกลาง)
         onlineProducts.forEach(sp => {
             const sid = String(sp.id);
             const idx = PRODUCTS.findIndex(p => String(p.id) === sid);
-            if (idx >= 0) {
-                Object.assign(PRODUCTS[idx], sp);
-            } else {
-                PRODUCTS.push(sp);
-            }
+            if (idx >= 0) Object.assign(PRODUCTS[idx], sp);
+            else PRODUCTS.push(sp);
         });
 
-        // ✅ สำหรับ Dashboard ให้กรองเฉพาะของตนเองใส่ใน sellerProducts
+        // ✅ สำหรับ Dashboard: กรองสินค้าที่เป็นของเราจริงๆ
         if (state.user) {
-            sellerProducts = onlineProducts.filter(p => p.shop === myShopName);
+            sellerProducts = onlineProducts.filter(p =>
+                possibleShopNames.includes(p.shop) ||
+                p.seller_id === state.user.id // รองรับระบบ ID ในอนาคต
+            );
+
+            // ✅ "Name Sync": ถ้าเราเจอสินค้าของเราแต่ชื่อร้านในสินค้าไม่ตรงกับร้านปัจจุบัน 
+            // ให้ปรับ state.user.shopName ให้ตรงตามสินค้าส่วนใหญ่ (Auto-Healing)
+            if (sellerProducts.length > 0 && !state.user.shopName) {
+                state.user.shopName = sellerProducts[0].shop;
+                saveToStorage();
+            }
         } else {
             sellerProducts = [];
         }
     } else {
-        // Fallback: ถ้าเน็ตหลุดหรือไม่มีใน Cloud ให้ใช้ Local ไปก่อน (สำหรับช่วงทรานสิชัน)
+        // Fallback: Local
         const savedSeller = localStorage.getItem('shopnow_seller_products');
         if (savedSeller) {
             const allSaved = JSON.parse(savedSeller);
-            // กรองสินค้าของฉันสำหรับ Dashboard
             if (state.user) {
-                sellerProducts = allSaved.filter(p => p.shop === myShopName);
+                sellerProducts = allSaved.filter(p => possibleShopNames.includes(p.shop));
             } else {
                 sellerProducts = [];
             }
 
-            // รวมเข้า PRODUCTS หลัก
             allSaved.forEach(sp => {
                 const sid = String(sp.id);
                 const idx = PRODUCTS.findIndex(p => String(p.id) === sid);
@@ -1549,12 +1572,17 @@ async function doLogin() {
             showToast('error', '❌ ' + error.message);
         } else {
             const user = data.user;
+            const profile = user.databaseProfile || {};
+
             state.user = {
                 id: user.id,
                 email: user.email,
-                name: user.user_metadata?.full_name || user.email.split('@')[0],
-                role: user.user_metadata?.role || 'user',
-                isAdmin: user.email === 'houseofstamp@gmail.com' || user.email.includes('admin')
+                name: profile.name || user.user_metadata?.full_name || user.email.split('@')[0],
+                phone: profile.phone || '',
+                role: profile.role || user.user_metadata?.role || 'user',
+                isSeller: profile.isSeller || false,
+                shopName: profile.shopName || '',
+                isAdmin: user.email === 'houseofstamp@gmail.com' || user.email.includes('admin') || profile.isAdmin
             };
 
             // ☁️ Sync ลงฐานข้อมูลออนไลน์ด้วย (เผื่อยังไม่มีในตาราง users)
@@ -2540,13 +2568,25 @@ async function saveProduct() {
     if (editingProductId) {
         const idx = sellerProducts.findIndex(p => String(p.id) === String(editingProductId));
         if (idx >= 0) {
-            pData = { ...sellerProducts[idx], sku: finalSku, name, price, stock, category, desc, shop, shopBadge, tags, badge, optionTitle, options, variations, emoji: selectedEmoji, images: finalImages, image: finalImages[0] || null };
+            pData = {
+                ...sellerProducts[idx],
+                sku: finalSku, name, price, stock, category, desc, shop,
+                shopBadge, tags, badge, optionTitle, options, variations,
+                emoji: selectedEmoji, images: finalImages, image: finalImages[0] || null,
+                seller_id: state.user.id // บันทึก ID ผู้ขายเสมอ
+            };
             sellerProducts[idx] = pData;
             showToast('success', '✅ แก้ไขสินค้าเรียบร้อย!');
         }
     } else {
         const newId = Date.now();
-        pData = { id: newId, sku: finalSku, name, price, originalPrice, stock, category, desc, shop, shopBadge, tags, badge, optionTitle, options, variations, emoji: selectedEmoji, images: finalImages, image: finalImages[0] || null, rating: 5.0, sold: 0, reviews: [], specs: {} };
+        pData = {
+            id: newId, sku: finalSku, name, price, originalPrice, stock, category, desc, shop,
+            shopBadge, tags, badge, optionTitle, options, variations,
+            emoji: selectedEmoji, images: finalImages, image: finalImages[0] || null,
+            rating: 5.0, sold: 0, reviews: [], specs: {},
+            seller_id: state.user.id // บันทึก ID ผู้ขายสำหรับสินค้าใหม่
+        };
         sellerProducts.push(pData);
         showToast('success', '🎉 เพิ่มสินค้าใหม่สำเร็จ!');
     }

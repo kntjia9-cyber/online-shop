@@ -76,7 +76,8 @@ async function saveOnlineProduct(p) {
             option_title: p.optionTitle,
             description: p.desc,
             image: p.image || null,
-            images: p.images || []
+            images: p.images || [],
+            seller_id: p.seller_id || (p.userId) // บันทึก ID ผู้ขายเพื่อความแม่นยำในการ Sync
         };
         const { error } = await client.from('products').upsert(dbData);
         if (error) {
@@ -109,7 +110,40 @@ async function signUpOnline(email, password, fullName) {
 async function signInOnline(email, password) {
     const client = getSupabase();
     const { data, error } = await client.auth.signInWithPassword({ email, password });
+    if (error || !data.user) return { data, error };
+
+    // ดึงข้อมูลเพิ่มเติมจากตาราง users
+    const profile = await getOnlineUserProfile(data.user.id);
+    if (profile) {
+        // รวมข้อมูลจากตาราง users เข้าไปใน user object
+        data.user.databaseProfile = profile;
+    }
+
     return { data, error };
+}
+
+/**
+ * ดึงข้อมูลโปรไฟล์จากตาราง users ตาม ID
+ */
+async function getOnlineUserProfile(userId) {
+    if (!await isOnline()) return null;
+    try {
+        const client = getSupabase();
+        const { data, error } = await client.from('users').select('*').eq('id', String(userId)).single();
+        if (error) return null;
+        return {
+            id: data.id,
+            email: data.email,
+            phone: data.phone,
+            name: data.name,
+            role: data.role,
+            isSeller: data.is_seller,
+            shopName: data.shop_name,
+            isAdmin: data.is_admin
+        };
+    } catch (err) {
+        return null;
+    }
 }
 
 /**
