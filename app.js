@@ -1095,6 +1095,14 @@ async function renderCheckout() {
     const sumEl = document.getElementById('checkout-summary');
     if (!formEl || !sumEl) return;
 
+    // เก็บค่าปัจจุบันจากฟอร์มก่อนถ้ามีการกรอกไว้แล้ว
+    const currentFname = document.getElementById('co-fname')?.value;
+    const currentLname = document.getElementById('co-lname')?.value;
+    const currentPhone = document.getElementById('co-phone')?.value;
+    const currentAddr = document.getElementById('co-addr')?.value;
+    const currentProvince = document.getElementById('co-province')?.value;
+    const currentZip = document.getElementById('co-zip')?.value;
+
     // ☁️ ดึงข้อมูล profile ล่าสุดจาก Supabase ก่อน render
     if (state.user?.id) {
         const latestProfile = await getOnlineUserProfile(state.user.id);
@@ -1104,10 +1112,14 @@ async function renderCheckout() {
         }
     }
 
-    // แยกชื่อ-นามสกุล
+    // แยกชื่อ-นามสกุล (ใช้ค่าจากฟอร์มปัจจุบันถ้ามี ถ้าไม่มีใช้จาก profile)
     const nameParts = (state.user?.name || '').trim().split(' ');
-    const firstName = nameParts[0] || '';
-    const lastName = nameParts.slice(1).join(' ') || '';
+    const firstName = currentFname !== undefined ? currentFname : (nameParts[0] || '');
+    const lastName = currentLname !== undefined ? currentLname : (nameParts.slice(1).join(' ') || '');
+    const phone = currentPhone !== undefined ? currentPhone : (state.user?.phone || '');
+    const address = currentAddr !== undefined ? currentAddr : (state.user?.address || '');
+    const province = currentProvince !== undefined ? currentProvince : (state.user?.province || '');
+    const zip = currentZip !== undefined ? currentZip : (state.user?.zip || '');
 
     formEl.innerHTML = `
     <div class="checkout-section">
@@ -1116,32 +1128,32 @@ async function renderCheckout() {
         <div class="form-group"><label>ชื่อ</label><input id="co-fname" placeholder="ชื่อ" value="${firstName}" /></div>
         <div class="form-group"><label>นามสกุล</label><input id="co-lname" placeholder="นามสกุล" value="${lastName}" /></div>
       </div>
-      <div class="form-group"><label>เบอร์โทร</label><input id="co-phone" placeholder="08X-XXX-XXXX" value="${state.user?.phone || ''}" /></div>
-      <div class="form-group"><label>ที่อยู่</label><textarea id="co-addr" rows="3" placeholder="บ้านเลขที่ ถนน แขวง เขต">${state.user?.address || ''}</textarea></div>
+      <div class="form-group"><label>เบอร์โทร</label><input id="co-phone" placeholder="08X-XXX-XXXX" value="${phone}" /></div>
+      <div class="form-group"><label>ที่อยู่</label><textarea id="co-addr" rows="3" placeholder="บ้านเลขที่ ถนน แขวง เขต">${address}</textarea></div>
       <div class="form-row">
         <div class="form-group"><label>จังหวัด</label><select id="co-province" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;background:var(--bg-2)">
-          ${['กรุงเทพมหานคร', 'เชียงใหม่', 'เชียงราย', 'ลำปาง', 'ลำพูน', 'แม่ฮ่องสอน', 'น่าน', 'พะเยา', 'แพร่', 'อุตรดิตถ์', 'ตาก', 'สุโขทัย', 'พิษณุโลก', 'เพชรบูรณ์', 'พิจิตร', 'กำแพงเพชร', 'นครสวรรค์', 'อุทัยธานี', 'ชัยนาท', 'สิงห์บุรี', 'อ่างทอง', 'พระนครศรีอยุธยา', 'สระบุรี', 'ลพบุรี', 'นครนายก', 'ปทุมธานี', 'นนทบุรี', 'นครปฐม', 'สมุทรสาคร', 'สมุทรสงคราม', 'สมุทรปราการ', 'กาญจนบุรี', 'ราชบุรี', 'เพชรบุรี', 'ประจวบคีรีขันธ์', 'สุพรรณบุรี', 'ชลบุรี', 'ระยอง', 'จันทบุรี', 'ตราด', 'ฉะเชิงเทรา', 'ปราจีนบุรี', 'สระแก้ว', 'นครราชสีมา', 'บุรีรัมย์', 'สุรินทร์', 'ศรีสะเกษ', 'อุบลราชธานี', 'ยโสธร', 'อำนาจเจริญ', 'มุกดาหาร', 'ร้อยเอ็ด', 'ขอนแก่น', 'กาฬสินธุ์', 'มหาสารคาม', 'สกลนคร', 'นครพนม', 'หนองคาย', 'บึงกาฬ', 'หนองบัวลำภู', 'อุดรธานี', 'เลย', 'ชุมพร', 'ระนอง', 'สุราษฎร์ธานี', 'นครศรีธรรมราช', 'กระบี่', 'พังงา', 'ภูเก็ต', 'ตรัง', 'พัทลุง', 'สตูล', 'สงขลา', 'ปัตตานี', 'ยะลา', 'นราธิวาส'].map(p => `<option value="${p}" ${(state.user?.province || '') === p ? 'selected' : ''}>${p}</option>`).join('')}
+          ${['กรุงเทพมหานคร', 'เชียงใหม่', 'เชียงราย', 'ลำปาง', 'ลำพูน', 'แม่ฮ่องสอน', 'น่าน', 'พะเยา', 'แพร่', 'อุตรดิตถ์', 'ตาก', 'สุโขทัย', 'พิษณุโลก', 'เพชรบูรณ์', 'พิจิตร', 'กำแพงเพชร', 'นครสวรรค์', 'อุทัยธานี', 'ชัยนาท', 'สิงห์บุรี', 'อ่างทอง', 'พระนครศรีอยุธยา', 'สระบุรี', 'ลพบุรี', 'นครนายก', 'ปทุมธานี', 'นนทบุรี', 'นครปฐม', 'สมุทรสาคร', 'สมุทรสงคราม', 'สมุทรปราการ', 'กาญจนบุรี', 'ราชบุรี', 'เพชรบุรี', 'ประจวบคีรีขันธ์', 'สุพรรณบุรี', 'ชลบุรี', 'ระยอง', 'จันทบุรี', 'ตราด', 'ฉะเชิงเทรา', 'ปราจีนบุรี', 'สระแก้ว', 'นครราชสีมา', 'บุรีรัมย์', 'สุรินทร์', 'ศรีสะเกษ', 'อุบลราชธานี', 'ยโสธร', 'อำนาจเจริญ', 'มุกดาหาร', 'ร้อยเอ็ด', 'ขอนแก่น', 'กาฬสินธุ์', 'มหาสารคาม', 'สกลนคร', 'นครพนม', 'หนองคาย', 'บึงกาฬ', 'หนองบัวลำภู', 'อุดรธานี', 'เลย', 'ชุมพร', 'ระนอง', 'สุราษฎร์ธานี', 'นครศรีธรรมราช', 'กระบี่', 'พังงา', 'ภูเก็ต', 'ตรัง', 'พัทลุง', 'สตูล', 'สงขลา', 'ปัตตานี', 'ยะลา', 'นราธิวาส'].map(p => `<option value="${p}" ${province === p ? 'selected' : ''}>${p}</option>`).join('')}
         </select></div>
-        <div class="form-group"><label>รหัสไปรษณีย์</label><input id="co-zip" placeholder="10XXX" value="${state.user?.zip || ''}" /></div>
+        <div class="form-group"><label>รหัสไปรษณีย์</label><input id="co-zip" placeholder="10XXX" value="${zip}" /></div>
       </div>
     </div>
     <div class="checkout-section">
       <h3>🚚 วิธีจัดส่ง</h3>
       <div class="payment-method">
-        <div class="pay-method-btn active" onclick="selectShipping(this,'standard')"><span class="pm-icon">📦</span>มาตรฐาน<br><small>2-3 วัน • ฟรี</small></div>
-        <div class="pay-method-btn" onclick="selectShipping(this,'express')"><span class="pm-icon">⚡</span>ด่วน<br><small>1 วัน • ฿50</small></div>
-        <div class="pay-method-btn" onclick="selectShipping(this,'same')"><span class="pm-icon">🏍️</span>วันนี้<br><small>3 ชม. • ฿99</small></div>
+        <div class="pay-method-btn ${state.shippingMethod === 'standard' ? 'active' : ''}" onclick="selectShipping(this,'standard')"><span class="pm-icon">📦</span>มาตรฐาน<br><small>2-3 วัน • ฟรี</small></div>
+        <div class="pay-method-btn ${state.shippingMethod === 'express' ? 'active' : ''}" onclick="selectShipping(this,'express')"><span class="pm-icon">⚡</span>ด่วน<br><small>1 วัน • ฿50</small></div>
+        <div class="pay-method-btn ${state.shippingMethod === 'same' ? 'active' : ''}" onclick="selectShipping(this,'same')"><span class="pm-icon">🏍️</span>วันนี้<br><small>3 ชม. • ฿99</small></div>
       </div>
     </div>
     <div class="checkout-section">
       <h3>💳 วิธีชำระเงิน</h3>
       <div class="payment-method">
-        <div class="pay-method-btn active" onclick="selectPayment(this,'card')"><span class="pm-icon">💳</span>บัตรเครดิต</div>
-        <div class="pay-method-btn" onclick="selectPayment(this,'qr')"><span class="pm-icon">📱</span>QR Code</div>
-        <div class="pay-method-btn" onclick="selectPayment(this,'transfer')"><span class="pm-icon">🏦</span>โอนเงิน</div>
-        <div class="pay-method-btn" onclick="selectPayment(this,'cod')"><span class="pm-icon">💵</span>เก็บปลายทาง</div>
-        <div class="pay-method-btn" onclick="selectPayment(this,'wallet')"><span class="pm-icon">👛</span>ShopNow Pay</div>
-        <div class="pay-method-btn" onclick="selectPayment(this,'installment')"><span class="pm-icon">📅</span>ผ่อนชำระ</div>
+        <div class="pay-method-btn ${state.paymentMethod === 'card' ? 'active' : ''}" onclick="selectPayment(this,'card')"><span class="pm-icon">💳</span>บัตรเครดิต</div>
+        <div class="pay-method-btn ${state.paymentMethod === 'qr' ? 'active' : ''}" onclick="selectPayment(this,'qr')"><span class="pm-icon">📱</span>QR Code</div>
+        <div class="pay-method-btn ${state.paymentMethod === 'transfer' ? 'active' : ''}" onclick="selectPayment(this,'transfer')"><span class="pm-icon">🏦</span>โอนเงิน</div>
+        <div class="pay-method-btn ${state.paymentMethod === 'cod' ? 'active' : ''}" onclick="selectPayment(this,'cod')"><span class="pm-icon">💵</span>เก็บปลายทาง</div>
+        <div class="pay-method-btn ${state.paymentMethod === 'wallet' ? 'active' : ''}" onclick="selectPayment(this,'wallet')"><span class="pm-icon">👛</span>ShopNow Pay</div>
+        <div class="pay-method-btn ${state.paymentMethod === 'installment' ? 'active' : ''}" onclick="selectPayment(this,'installment')"><span class="pm-icon">📅</span>ผ่อนชำระ</div>
       </div>
     </div>
     <div class="checkout-section" id="checkout-voucher-section">
