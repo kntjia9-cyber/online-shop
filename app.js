@@ -1325,9 +1325,16 @@ function renderOrders() {
     if (freshState.orders) state.orders = freshState.orders;
     // 🔒 กรองเฉพาะออเดอร์ที่เป็นของ User คนนี้จริงๆ หรือออเดอร์ Guest ที่มีเบอร์โทรตรงกัน
     let orders = state.orders.filter(o => {
-        const isOwner = o.userId === state.user?.id;
-        const isGuestMatch = !o.userId && o.address && state.user?.phone && o.address.includes(state.user.phone);
-        return isOwner || isGuestMatch;
+        if (!state.user) return false;
+
+        const myId = state.user.id;
+        const myAltId = myId.startsWith('p-') ? myId.replace('p-', 'phone-') : myId.replace('phone-', 'p-');
+        const myPhone = state.user.phone ? state.user.phone.replace(/[^0-9]/g, '') : (myId.includes('-') ? myId.split('-')[1] : '');
+
+        const isOwner = o.userId === myId || o.userId === myAltId;
+        const isPhoneMatch = o.address && myPhone && o.address.includes(myPhone);
+
+        return isOwner || isPhoneMatch;
     });
 
     if (state.orderFilter !== 'all') {

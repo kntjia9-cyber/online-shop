@@ -387,12 +387,29 @@ async function fetchOnlineOrders() {
             ? adminState.currentUser
             : (typeof state !== 'undefined' ? state.user : null);
 
-        if (currentUser && !currentUser.isAdmin && !currentUser.is_seller) {
-            query = query.eq('user_id', currentUser.id);
+        // ตรวจสอบสิทธิ์: ถ้าเป็น Admin หรือ Seller ให้เห็นทั้งหมด
+        // ถ้าเป็น User ปกติ ให้เห็นของตัวเอง (ID) หรือออเดอร์ที่ระบุเบอร์โทรเรา (Guest Fallback)
+        if (currentUser) {
+            const isSeller = currentUser.isSeller || currentUser.is_seller;
+            if (!currentUser.isAdmin && !isSeller) {
+                const phone = currentUser.phone ? currentUser.phone.replace(/[^0-9]/g, '') : (currentUser.id.includes('-') ? currentUser.id.split('-')[1] : '');
+                const altId = currentUser.id.startsWith('p-') ? currentUser.id.replace('p-', 'phone-') : currentUser.id.replace('phone-', 'p-');
+
+                console.log('🔒 Searching for IDs:', [currentUser.id, altId, phone]);
+
+                // ค้นหาแบบกว้าง: ID ปัจจุบัน, ID แบบเก่า/ใหม่, หรือเบอร์โทรในที่อยู่
+                query = query.or(`user_id.eq."${currentUser.id}",user_id.eq."${altId}",shipping_address.ilike.%${phone}%`);
+            }
         }
 
+        // ดึงออเดอร์ทั้งหมดมาก่อน แล้วค่อยไปกรองที่หน้าเครื่อง เพื่อรองรับระบบ Guest/Phone Matching
         const { data, error } = await query.order('created_at', { ascending: false });
-        if (error) throw error;
+        if (error) {
+            console.error('❌ Supabase Fetch Orders Error:', error);
+            throw error;
+        }
+
+        console.log(`📦 Cloud returned ${data.length} total orders. Mapping results...`);
 
         return data.map(o => ({
             id: o.id,
