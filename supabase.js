@@ -104,6 +104,35 @@ async function signUpOnline(email, password, fullName) {
 }
 
 /**
+ * ดึงข้อมูลโปรไฟล์ผู้ใช้ฉบับเต็มจากตาราง users
+ */
+async function fetchOnlineUserProfile(userId) {
+    if (!await isOnline()) return null;
+    try {
+        const client = getSupabase();
+        const { data, error } = await client.from('users').select('*').eq('id', userId).single();
+        if (error) throw error;
+        return {
+            id: data.id,
+            email: data.email,
+            name: data.name,
+            phone: data.phone,
+            role: data.role,
+            isSeller: data.is_seller,
+            shopName: data.shop_name,
+            isAdmin: data.is_admin,
+            shopBadge: data.shop_badge,
+            shopDesc: data.shop_desc,
+            shopAddr: data.shop_addr,
+            defaultOptions: data.default_options
+        };
+    } catch (err) {
+        console.warn('⚠️ User profile not found in table:', userId);
+        return null;
+    }
+}
+
+/**
  * ฟังก์ชันเข้าสู่ระบบออนไลน์
  */
 async function signInOnline(email, password) {
@@ -350,7 +379,7 @@ async function fetchOnlineOrders() {
             ? adminState.currentUser
             : (typeof state !== 'undefined' ? state.user : null);
 
-        if (currentUser && !currentUser.isAdmin && !currentUser.is_seller) {
+        if (currentUser && !currentUser.isAdmin && !currentUser.isSeller && !currentUser.is_seller) {
             query = query.eq('user_id', currentUser.id);
         }
 

@@ -594,7 +594,6 @@ function changeQty(d) {
 
 function switchTab(tab) {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
     event.currentTarget.classList.add('active');
     document.getElementById('tab-' + tab).classList.remove('hidden');
 }
@@ -1485,12 +1484,18 @@ async function doLogin() {
             showToast('error', '❌ ' + error.message);
         } else {
             const user = data.user;
+
+            // ดึง Metadata เพิ่มเติมจากตาราง users
+            const profile = await fetchOnlineUserProfile(user.id);
+
             state.user = {
                 id: user.id,
                 email: user.email,
-                name: user.user_metadata?.full_name || user.email.split('@')[0],
-                role: user.user_metadata?.role || 'user',
-                isAdmin: user.email === 'houseofstamp@gmail.com' || user.email.includes('admin')
+                name: profile?.name || user.user_metadata?.full_name || user.email.split('@')[0],
+                role: profile?.role || user.user_metadata?.role || 'user',
+                isAdmin: profile?.isAdmin || user.email === 'houseofstamp@gmail.com' || user.email.includes('admin'),
+                isSeller: profile?.isSeller || false,
+                shopName: profile?.shopName || ''
             };
 
             // ☁️ Sync ลงฐานข้อมูลออนไลน์ด้วย (เผื่อยังไม่มีในตาราง users)
