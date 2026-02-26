@@ -60,8 +60,10 @@ function refreshActiveTab() {
 }
 
 async function loadData() {
-    // ☁️ ดึงข้อมูลจาก Cloud (Supabase)
-    const [onlineProducts, onlineOrders, onlineBanners, onlineVouchers, onlineUsers] = await Promise.all([
+    console.log('⌛ Loading all data from Cloud...');
+
+    // ☁️ ดึงข้อมูลแบบแยกจากกัน เพื่อไม่ให้ Error ตัวนึงล่มคนอื่น
+    const results = await Promise.allSettled([
         fetchOnlineProducts(),
         fetchOnlineOrders(),
         fetchOnlineBanners(),
@@ -69,11 +71,12 @@ async function loadData() {
         fetchOnlineUsers()
     ]);
 
-    // ทับข้อมูลลงใน globalState
-    globalState.allProducts = onlineProducts;
-    globalState.orders = onlineOrders;
-    globalState.banners = onlineBanners;
-    globalState.vouchers = onlineVouchers;
+    // ตรวจสอบผลลัพธ์ทีละตัว
+    globalState.allProducts = results[0].status === 'fulfilled' ? results[0].value : [];
+    globalState.orders = results[1].status === 'fulfilled' ? results[1].value : [];
+    globalState.banners = results[2].status === 'fulfilled' ? results[2].value : [];
+    globalState.vouchers = results[3].status === 'fulfilled' ? results[3].value : [];
+    const onlineUsers = results[4].status === 'fulfilled' ? results[4].value : [];
 
     // ดึงรายชื่อสมาชิก: ถ้าออนไลน์มีข้อมูลให้ใช้จากออนไลน์เป็นหลัก
     if (onlineUsers && onlineUsers.length > 0) {
