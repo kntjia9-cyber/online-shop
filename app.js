@@ -1388,7 +1388,8 @@ async function syncUserToGlobalList() {
     // ☁️ Sync ขึ้น Cloud
     await saveOnlineUser(state.user);
 
-    saveUsers(); // บันทีกลง localStorage (ซึ่งจะไปกระตุ้น Event 'storage' ในหน้า Admin)
+    // ตั้งแต่นี้เราจะไม่ใช้ saveUsers() เพื่อเก็บลง localStorage แล้ว 
+    // เพื่อป้องกันความสับสนกับข้อมูลออนไลน์
 }
 
 // ===== AUTH =====

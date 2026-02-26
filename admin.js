@@ -78,14 +78,9 @@ async function loadData() {
     globalState.vouchers = results[3].status === 'fulfilled' ? results[3].value : [];
     const onlineUsers = results[4].status === 'fulfilled' ? results[4].value : [];
 
-    // ดึงรายชื่อสมาชิก: ถ้าออนไลน์มีข้อมูลให้ใช้จากออนไลน์เป็นหลัก
-    if (onlineUsers && onlineUsers.length > 0) {
-        console.log('👥 Loaded Users from Cloud:', onlineUsers.length);
-        globalState.users = onlineUsers;
-    } else {
-        console.log('🏠 No users found in Cloud, falling back to LocalStorage');
-        globalState.users = JSON.parse(localStorage.getItem('shopnow_users') || '[]');
-    }
+    // ดึงรายชื่อสมาชิก: ใช้ข้อมูลจาก Cloud 100% (ไม่มีการ Fallback ไป LocalStorage)
+    console.log('👥 Loaded Users from Cloud:', onlineUsers.length);
+    globalState.users = onlineUsers;
 
     // ตรวจสอบว่ามี Admin ในรายชื่อหรือยัง ถ้าไม่มีให้เพิ่มหลอกๆ ไว้แสดงผล
     if (adminState.currentUser && !globalState.users.find(u => u.email === adminState.currentUser.email)) {
@@ -340,11 +335,8 @@ function renderAllUsers(el) {
 
     el.innerHTML = `
         <div style="margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap">
-             <div style="font-size:14px; color:#666">พบสมาชิกทั้งหมด <b>${globalState.users.length}</b> รายชื่อ</div>
-             <div style="display:flex; gap:10px">
-                <button class="btn-adm" style="background:#e74c3c; color:#fff; border:none" onclick="clearLocalUsers()">🗑️ ล้างรายชื่อในเครื่องนี้</button>
-                <button class="btn-adm" style="background:#2ecc71; color:#fff; border:none" onclick="manualSyncUsers()">☁️ ส่งรายชื่อสมาชิกขึ้น Cloud</button>
-             </div>
+             <div style="font-size:14px; color:#666">☁️ สมาชิกออนไลน์ทั้งหมด <b>${globalState.users.length}</b> รายชื่อ</div>
+             <button class="btn-adm btn-adm-primary" onclick="loadData().then(() => renderAllUsers(document.getElementById('admin-content-area')))">🔄 รีเฟรชข้อมูล Cloud</button>
         </div>
         <div class="sd-table-wrap" style="background:#fff; border-radius:12px; overflow:hidden">
             <table class="sd-table">
