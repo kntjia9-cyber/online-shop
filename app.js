@@ -1099,7 +1099,7 @@ function renderCheckout() {
         <div class="form-group"><label>นามสกุล</label><input id="co-lname" placeholder="นามสกุล" /></div>
       </div>
       <div class="form-group"><label>เบอร์โทร</label><input id="co-phone" placeholder="08X-XXX-XXXX" value="${state.user?.phone || ''}" /></div>
-      <div class="form-group"><label>ที่อยู่</label><textarea id="co-addr" rows="3" placeholder="บ้านเลขที่ ถนน แขวง เขต"></textarea></div>
+      <div class="form-group"><label>ที่อยู่</label><textarea id="co-addr" rows="3" placeholder="บ้านเลขที่ ถนน แขวง เขต">${state.user?.address || ''}</textarea></div>
       <div class="form-row">
         <div class="form-group"><label>จังหวัด</label><select id="co-province"><option>กรุงเทพมหานคร</option><option>เชียงใหม่</option><option>ภูเก็ต</option><option>ขอนแก่น</option><option>นครราชสีมา</option><option>สงขลา</option></select></div>
         <div class="form-group"><label>รหัสไปรษณีย์</label><input id="co-zip" placeholder="10XXX" /></div>
@@ -1493,6 +1493,7 @@ function renderProfile() {
     <div class="form-group"><label>อีเมล</label><input value="${state.user.email || ''}" id="profile-email"/></div>
     <div class="form-group"><label>วันเกิด</label><input type="date" id="profile-dob"/></div>
     <div class="form-group"><label>เพศ</label><select id="profile-gender"><option>ชาย</option><option>หญิง</option><option>ไม่ระบุ</option></select></div>
+    <div class="form-group"><label>ที่อยู่สำหรับจัดส่ง</label><textarea id="profile-address" rows="3" style="width:100%; padding:12px; border:1px solid var(--border); border-radius:8px; font-family:inherit">${state.user.address || ''}</textarea></div>
     
     ${!state.user.isSeller ? `
     <div style="background:#fff3e0; padding:20px; border-radius:12px; border-left:4px solid #ff9800; margin-top:20px">
@@ -1521,14 +1522,16 @@ async function saveProfile() {
     const newName = document.getElementById('profile-name')?.value || state.user.name;
     const newPhone = document.getElementById('profile-phone')?.value || state.user.phone;
     const newEmail = document.getElementById('profile-email')?.value || state.user.email;
+    const newAddress = document.getElementById('profile-address')?.value || '';
 
     state.user.name = newName;
     state.user.phone = newPhone;
     state.user.email = newEmail;
+    state.user.address = newAddress;
 
     // ☁️ อัปเดตขึ้น Cloud ถ้าเป็นสมาชิกออนไลน์
     if (state.user.email && state.user.id.length > 20) { // Check if it's a UUID from Supabase
-        await updateUserOnline(newName, { phone: newPhone });
+        await updateUserOnline(newName, { phone: newPhone, address: newAddress });
     }
 
     syncUserToGlobalList(); // ✅ อัปเดตข้อมูลลูกค้าในหน้าแอดมินด้วย
@@ -1584,6 +1587,7 @@ async function doLogin() {
                 role: profile.role || user.user_metadata?.role || 'user',
                 isSeller: profile.isSeller || false,
                 shopName: profile.shopName || '',
+                address: profile.address || '',
                 isAdmin: user.email === 'houseofstamp@gmail.com' || user.email.includes('admin') || profile.isAdmin
             };
 
@@ -1658,6 +1662,7 @@ async function doRegister() {
     const phone = document.getElementById('reg-phone')?.value.trim();
     const email = document.getElementById('reg-email')?.value.trim();
     const pass = document.getElementById('reg-pass')?.value;
+    const address = document.getElementById('reg-address')?.value.trim() || '';
     const agree = document.getElementById('reg-agree')?.checked;
     const isSeller = document.getElementById('reg-is-seller')?.checked;
 
@@ -1679,7 +1684,8 @@ async function doRegister() {
         role: 'user',
         isSeller: isSeller || false,
         shopName: isSeller ? (name + "'s Shop") : '',
-        isAdmin: (email && (email === 'houseofstamp@gmail.com' || email.includes('admin')))
+        isAdmin: (email && (email === 'houseofstamp@gmail.com' || email.includes('admin'))),
+        address: address
     };
 
     if (email) {

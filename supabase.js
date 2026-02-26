@@ -139,7 +139,8 @@ async function getOnlineUserProfile(userId) {
             role: data.role,
             isSeller: data.is_seller,
             shopName: data.shop_name,
-            isAdmin: data.is_admin
+            isAdmin: data.is_admin,
+            address: data.address || ''
         };
     } catch (err) {
         return null;
@@ -174,6 +175,7 @@ async function signInWithPhoneOnline(phone, password) {
             isSeller: userData.is_seller,
             shopName: userData.shop_name,
             isAdmin: userData.is_admin,
+            address: userData.address || '',
             pass: userData.password
         };
         return { data: { user }, error: null };
@@ -223,6 +225,7 @@ async function saveOnlineUser(user) {
             is_seller: user.isSeller || false,
             shop_name: user.shopName || '',
             is_admin: user.isAdmin || false,
+            address: user.address || '',
             last_login: new Date().toISOString()
         };
 
@@ -259,7 +262,8 @@ async function fetchOnlineUsers() {
             role: u.role,
             isSeller: u.is_seller,
             shopName: u.shop_name,
-            isAdmin: u.is_admin
+            isAdmin: u.is_admin,
+            address: u.address || ''
         }));
     } catch (err) {
         console.error('❌ Fetch Users Error:', err);
