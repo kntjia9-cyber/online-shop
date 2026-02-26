@@ -1,0 +1,12 @@
+{
+  "name": "online-shop",
+  "version": "1.0.0",
+  "description": "Online shop with Supabase integration",
+  "main": "index.html",
+  "scripts": {
+    "start": "serve ."
+  },
+  "dependencies": {
+    "serve": "^14.2.1"
+  }
+}

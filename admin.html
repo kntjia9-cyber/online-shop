@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShopNow Admin Management - ระบบจัดการหลังบ้าน</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        :root {
+            --admin-sidebar: #1a1c23;
+            --admin-bg: #f4f6f8;
+            --admin-primary: #3f51b5;
+        }
+
+        body {
+            background: var(--admin-bg);
+            display: flex;
+            min-height: 100vh;
+            font-family: 'Inter', 'Kanit', sans-serif;
+            margin: 0;
+        }
+
+        /* Sidebar */
+        .admin-sidebar {
+            width: 260px;
+            background: var(--admin-sidebar);
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+        }
+
+        .admin-logo {
+            padding: 30px 20px;
+            font-size: 24px;
+            font-weight: 800;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .admin-nav {
+            flex: 1;
+            padding: 20px 0;
+        }
+
+        .admin-nav-item {
+            padding: 14px 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: rgba(255, 255, 255, 0.7);
+            text-decoration: none;
+            transition: 0.3s;
+            cursor: pointer;
+        }
+
+        .admin-nav-item:hover,
+        .admin-nav-item.active {
+            background: rgba(255, 255, 255, 0.05);
+            color: #fff;
+            border-left: 4px solid var(--admin-primary);
+        }
+
+        /* Main Content */
+        .admin-main {
+            flex: 1;
+            margin-left: 260px;
+            padding: 40px;
+        }
+
+        .admin-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        /* Dashboard Stats */
+        .admin-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 24px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: #fff;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        .stat-title {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #111;
+        }
+
+        /* Login Screen */
+        #admin-login-screen {
+            position: fixed;
+            inset: 0;
+            background: var(--admin-sidebar);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        .login-box {
+            background: #fff;
+            color: #333;
+            padding: 40px;
+            border-radius: 16px;
+            width: 400px;
+            text-align: center;
+        }
+
+        .login-box input {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+
+        .sd-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #fff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        .sd-table th,
+        .sd-table td {
+            padding: 16px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        .sd-table th {
+            background: #f8f9fa;
+            color: #666;
+            font-weight: 600;
+        }
+
+        .btn-adm {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: 0.2s;
+        }
+
+        .btn-adm-primary {
+            background: var(--admin-primary);
+            color: #fff;
+        }
+
+        .btn-adm-danger {
+            background: #ff4d4d;
+            color: #fff;
+        }
+
+        /* Modal Styles */
+        .admin-modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        }
+
+        .admin-modal {
+            background: #fff;
+            width: 600px;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .admin-modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .admin-modal-body {
+            padding: 24px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: #999;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Login Auth -->
+    <div id="admin-login-screen">
+        <div class="login-box">
+            <h2 style="margin-bottom:20px">🔐 ShopNow Admin</h2>
+            <p style="color:#666; margin-bottom:20px">กรุณาเข้าสู่ระบบด้วยสิทธิ์ผู้ดูแลระบบ</p>
+            <input type="text" id="adm-email" placeholder="Email (houseofstamp@gmail.com)">
+            <input type="password" id="adm-pass" placeholder="Password">
+            <button class="btn-adm btn-adm-primary" style="width:100%; padding:14px; margin-top:10px"
+                onclick="adminLogin()">เข้าสู่ระบบจัดการ</button>
+            <p style="margin-top:20px; font-size:12px; color:#999">ระบบนี้สงวนสิทธิ์เฉพาะพนักงานผู้ได้รับอนุญาตเท่านั้น
+            </p>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <aside class="admin-sidebar" id="admin-sidebar-el" style="display:none">
+        <div class="admin-logo">🛒 ShopNow <span
+                style="font-size:12px; font-weight:400; color:var(--admin-primary)">ADMIN</span></div>
+        <nav class="admin-nav">
+            <a class="admin-nav-item active" id="anav-dash" onclick="goTab('dash')">📊 แดชบอร์ด</a>
+            <a class="admin-nav-item" id="anav-banners" onclick="goTab('banners')">🖼️ จัดการแบนเนอร์</a>
+            <a class="admin-nav-item" id="anav-products" onclick="goTab('products')">📦 สินค้าทั้งหมด</a>
+            <a class="admin-nav-item" id="anav-users" onclick="goTab('users')">👥 สมาชิกในระบบ</a>
+            <a class="admin-nav-item" id="anav-orders" onclick="goTab('orders')">💰 รายการขายทั้งหมด</a>
+            <a class="admin-nav-item" id="anav-vouchers" onclick="goTab('vouchers')">🎟️ คูปองแพลตฟอร์ม</a>
+        </nav>
+        <div style="padding: 20px; border-top: 1px solid rgba(255,255,255,0.1)">
+            <button class="btn-adm" style="width:100%; background:rgba(255,255,255,0.1); color:#fff"
+                onclick="adminLogout()">🚪 ออกจากระบบ</button>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="admin-main" id="admin-main-el" style="display:none">
+        <header class="admin-header">
+            <div>
+                <h1 id="page-title">แดชบอร์ดภาพรวม</h1>
+                <div id="admin-profile-info" style="font-size:14px; color:#666"></div>
+            </div>
+            <div style="display:flex; align-items:center; gap:16px">
+                <span id="cloud-status" style="font-size:12px; color:#999; display:flex; align-items:center; gap:6px">
+                    <span style="width:8px; height:8px; background:#ccc; border-radius:50%"></span> Cloud Connecting...
+                </span>
+                <button class="btn-adm btn-adm-outline" style="border:1px solid #ddd; background:#fff"
+                    onclick="loadData(); refreshActiveTab(); alert('🔄 อัปเดตข้อมูลล่าสุดแล้ว!');">🔄
+                    รีเฟรชข้อมูล</button>
+            </div>
+        </header>
+
+        <div id="admin-content-area">
+            <!-- Content will be injected here -->
+        </div>
+    </main>
+
+    <!-- Modal สำหรับดูรายละเอียดสมาชิก -->
+    <div id="user-detail-modal" class="admin-modal-overlay" style="display:none"
+        onclick="if(event.target===this) this.style.display='none'">
+        <div class="admin-modal">
+            <div class="admin-modal-header">
+                <h3>👤 รายละเอียดสมาชิก</h3>
+                <button class="close-btn"
+                    onclick="document.getElementById('user-detail-modal').style.display='none'">✕</button>
+            </div>
+            <div id="user-detail-body" class="admin-modal-body">
+                <!-- Data injected here -->
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="data.js"></script>
+    <script src="supabase.js"></script>
+    <script src="admin.js"></script>
+</body>
+
+</html>

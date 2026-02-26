@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ShopNow - ช้อปปิ้งออนไลน์ที่ดีที่สุด</title>
+    <meta name="description"
+        content="ShopNow ร้านค้าออนไลน์ ราคาถูก สินค้าคุณภาพดี จัดส่งรวดเร็ว ช้อปได้ทุกที่ทุกเวลา" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+    <!-- Supabase SDK for Online Data -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+
+<body>
+
+    <!-- HEADER -->
+    <header class="header" id="header">
+        <div class="header-top">
+            <div class="container">
+                <div class="header-top-links">
+                    <a href="#" onclick="openPage('seller')">ขายสินค้ากับ ShopNow</a>
+                    <span class="divider">|</span>
+                    <span id="cloud-status"
+                        style="font-size:11px; color:rgba(255,255,255,0.6); display:flex; align-items:center; gap:4px">
+                        <span style="width:6px; height:6px; background:#666; border-radius:50%"></span> Checking...
+                    </span>
+                    <span class="divider">|</span>
+                    <a href="#">ดาวน์โหลดแอป</a>
+                    <span class="divider">|</span>
+                    <a href="#">ติดตามเราบน</a>
+                    <a href="#" class="social-icon">📘</a>
+                    <a href="#" class="social-icon">📷</a>
+                </div>
+                <div class="header-top-user">
+                    <a href="#" onclick="openModal('notif-modal')">🔔 การแจ้งเตือน</a>
+                    <span class="divider">|</span>
+                    <a href="#" onclick="openModal('help-modal')">❓ ช่วยเหลือ</a>
+                    <span class="divider">|</span>
+                    <div class="user-dropdown" id="user-dropdown">
+                        <a href="#" onclick="toggleUserMenu()" id="user-btn">
+                            <span id="user-avatar-top">👤</span>
+                            <span id="user-name-top">เข้าสู่ระบบ</span>
+                        </a>
+                        <div class="dropdown-menu" id="user-menu">
+                            <a href="#" onclick="openPage('profile')">👤 บัญชีของฉัน</a>
+                            <a href="#" onclick="openPage('orders')">📦 คำสั่งซื้อของฉัน</a>
+                            <a href="#" onclick="openPage('wishlist')">❤️ รายการโปรด</a>
+                            <a href="#" onclick="goSellerDash()" style="color:var(--primary);font-weight:700">🏪
+                                จัดการร้านค้า</a>
+                            <a href="#" onclick="logout()">🚪 ออกจากระบบ</a>
+                        </div>
+                    </div>
+                    <a href="#" class="btn-login" onclick="openModal('login-modal')" id="login-link">เข้าสู่ระบบ</a>
+                    <span class="divider">|</span>
+                    <a href="#" class="btn-register" onclick="openModal('register-modal')">สมัครสมาชิก</a>
+                </div>
+            </div>
+        </div>
+        <div class="header-main">
+            <div class="container">
+                <div class="logo" onclick="openPage('home')">
+                    <span class="logo-icon">🛒</span>
+                    <span class="logo-text">ShopNow</span>
+                </div>
+                <div class="search-bar">
+                    <div class="search-input-wrap">
+                        <input type="text" id="search-input" placeholder="ค้นหาสินค้า แบรนด์ หรือหมวดหมู่..."
+                            autocomplete="off" />
+                        <div class="search-suggestions" id="search-suggestions"></div>
+                    </div>
+                    <button class="btn-search" onclick="doSearch()" id="search-btn">
+                        <span>🔍</span> ค้นหา
+                    </button>
+                </div>
+                <button class="cart-btn" onclick="openPage('cart')" id="cart-btn">
+                    <span class="cart-icon">🛒</span>
+                    <span class="cart-badge" id="cart-badge">0</span>
+                </button>
+            </div>
+        </div>
+        <nav class="header-nav">
+            <div class="container">
+                <a href="#" onclick="openPage('home')" class="nav-link active" id="nav-home">🏠 หน้าหลัก</a>
+                <a href="#" onclick="filterCategory('flash')" class="nav-link flash-text">⚡ Flash Sale</a>
+                <a href="#" onclick="filterCategory('top')" class="nav-link">🏆 สินค้ายอดนิยม</a>
+                <a href="#" onclick="filterCategory('new')" class="nav-link">✨ สินค้าใหม่</a>
+                <a href="#" onclick="filterCategory('electronics')" class="nav-link">📱 อิเล็กทรอนิกส์</a>
+                <a href="#" onclick="filterCategory('fashion')" class="nav-link">👗 แฟชั่น</a>
+                <a href="#" onclick="filterCategory('beauty')" class="nav-link">💄 ความงาม</a>
+                <a href="#" onclick="filterCategory('home')" class="nav-link">🏡 บ้านและสวน</a>
+                <a href="#" onclick="filterCategory('sports')" class="nav-link">⚽ กีฬา</a>
+                <a href="#" onclick="filterCategory('food')" class="nav-link">🍜 อาหาร</a>
+            </div>
+        </nav>
+    </header>
+
+    <!-- PAGES WRAPPER -->
+    <main id="app">
+
+        <!-- HOME PAGE -->
+        <div id="page-home" class="page active">
+
+            <!-- HERO BANNER -->
+            <section class="hero-section">
+                <div class="container">
+                    <div class="hero-layout">
+                        <div class="categories-sidebar">
+                            <div class="cat-item" onclick="filterCategory('electronics')">📱 อิเล็กทรอนิกส์</div>
+                            <div class="cat-item" onclick="filterCategory('fashion')">👗 เสื้อผ้า & แฟชั่น</div>
+                            <div class="cat-item" onclick="filterCategory('beauty')">💄 ความงาม & สุขภาพ</div>
+                            <div class="cat-item" onclick="filterCategory('home')">🏡 บ้านและสวน</div>
+                            <div class="cat-item" onclick="filterCategory('sports')">⚽ กีฬาและกลางแจ้ง</div>
+                            <div class="cat-item" onclick="filterCategory('food')">🍜 อาหาร & เครื่องดื่ม</div>
+                            <div class="cat-item" onclick="filterCategory('toys')">🧸 ของเล่นและเด็ก</div>
+                            <div class="cat-item" onclick="filterCategory('books')">📚 หนังสือ & อุปกรณ์</div>
+                            <div class="cat-item" onclick="filterCategory('auto')">🚗 ยานพาหนะ</div>
+                            <div class="cat-item" onclick="filterCategory('pets')">🐾 สัตว์เลี้ยง</div>
+                        </div>
+                        <div class="hero-slider">
+                            <div class="slides" id="hero-slides">
+                                <!-- Dynamic Banners From app.js -->
+                            </div>
+                            <div class="slide-dots" id="slide-dots">
+                                <!-- Dynamic Dots From app.js -->
+                            </div>
+                            <button class="slide-arrow prev" onclick="changeSlide(-1)">‹</button>
+                            <button class="slide-arrow next" onclick="changeSlide(1)">›</button>
+                        </div>
+                        <div class="hero-mini-banners">
+                            <div class="mini-banner mb-1" onclick="openModal('voucher-modal')">
+                                <span class="mb-icon">🎁</span>
+                                <div>
+                                    <strong>รับโค้ดวันนี้</strong>
+                                    <small>ส่วนลดสูงสุด ฿500</small>
+                                </div>
+                            </div>
+                            <div class="mini-banner mb-2" onclick="filterCategory('flash')">
+                                <span class="mb-icon">⚡</span>
+                                <div>
+                                    <strong>Flash Sale</strong>
+                                    <small>ลดสูงสุด 90%</small>
+                                </div>
+                            </div>
+                            <div class="mini-banner mb-3" onclick="openModal('freeship-modal')">
+                                <span class="mb-icon">🚚</span>
+                                <div>
+                                    <strong>ส่งฟรีทุกออเดอร์</strong>
+                                    <small>เมื่อซื้อครบ ฿199</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- CATEGORIES -->
+            <section class="categories-section">
+                <div class="container">
+                    <div class="section-title">
+                        <h2>🗂️ หมวดหมู่สินค้า</h2>
+                    </div>
+                    <div class="cat-grid">
+                        <div class="cat-card" onclick="filterCategory('electronics')">
+                            <div class="cat-emoji">📱</div>
+                            <span>อิเล็กทรอนิกส์</span>
+                        </div>
+                        <div class="cat-card" onclick="filterCategory('fashion')">
+                            <div class="cat-emoji">👗</div>
+                            <span>เสื้อผ้า</span>
+                        </div>
+                        <div class="cat-card" onclick="filterCategory('beauty')">
+                            <div class="cat-emoji">💄</div>
+                            <span>ความงาม</span>
+                        </div>
+                        <div class="cat-card" onclick="filterCategory('home')">
+                            <div class="cat-emoji">🏡</div>
+                            <span>บ้านและสวน</span>
+                        </div>
+                        <div class="cat-card" onclick="filterCategory('sports')">
+                            <div class="cat-emoji">⚽</div>
+                            <span>กีฬา</span>
+                        </div>
+                        <div class="cat-card" onclick="filterCategory('food')">
+                            <div class="cat-emoji">🍜</div>
+                            <span>อาหาร</span>
+                        </div>
+                        <div class="cat-card" onclick="filterCategory('toys')">
+                            <div class="cat-emoji">🧸</div>
+                            <span>ของเล่น</span>
+                        </div>
+                        <div class="cat-card" onclick="filterCategory('books')">
+                            <div class="cat-emoji">📚</div>
+                            <span>หนังสือ</span>
+                        </div>
+                        <div class="cat-card" onclick="filterCategory('auto')">
+                            <div class="cat-emoji">🚗</div>
+                            <span>ยานพาหนะ</span>
+                        </div>
+                        <div class="cat-card" onclick="filterCategory('pets')">
+                            <div class="cat-emoji">🐾</div>
+                            <span>สัตว์เลี้ยง</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- FLASH SALE -->
+            <section class="flash-sale-section">
+                <div class="container">
+                    <div class="section-header flash-header">
+                        <div class="flash-title">
+                            <span class="flash-icon">⚡</span>
+                            <h2>Flash Sale</h2>
+                        </div>
+                        <div class="countdown" id="countdown">
+                            <span>สิ้นสุดใน:</span>
+                            <div class="time-box"><span id="cd-h">02</span><small>ชม.</small></div>
+                            <div class="time-box"><span id="cd-m">45</span><small>นาที</small></div>
+                            <div class="time-box"><span id="cd-s">30</span><small>วิ</small></div>
+                        </div>
+                        <a href="#" onclick="filterCategory('flash')" class="see-all">ดูทั้งหมด →</a>
+                    </div>
+                    <div class="products-row" id="flash-products"></div>
+                </div>
+            </section>
+
+            <!-- FEATURED PRODUCTS -->
+            <section class="products-section">
+                <div class="container">
+                    <div class="section-header">
+                        <h2>🏆 สินค้ายอดนิยม</h2>
+                        <a href="#" onclick="filterCategory('top')" class="see-all">ดูทั้งหมด →</a>
+                    </div>
+                    <div class="products-grid" id="featured-products"></div>
+                </div>
+            </section>
+
+            <!-- NEW PRODUCTS -->
+            <section class="products-section bg-light">
+                <div class="container">
+                    <div class="section-header">
+                        <h2>✨ สินค้าใหม่มาแรง</h2>
+                        <a href="#" onclick="filterCategory('new')" class="see-all">ดูทั้งหมด →</a>
+                    </div>
+                    <div class="products-grid" id="new-products"></div>
+                </div>
+            </section>
+
+            <!-- PROMO BANNERS -->
+            <section class="promo-section">
+                <div class="container">
+                    <div class="promo-grid">
+                        <div class="promo-card promo-1" onclick="filterCategory('electronics')">
+                            <h3>📱 มือถือ & แท็บเล็ต</h3>
+                            <p>ลดสูงสุด 40%</p>
+                            <button>ช้อปเลย</button>
+                        </div>
+                        <div class="promo-card promo-2" onclick="filterCategory('fashion')">
+                            <h3>👗 แฟชั่นสุดฮิต</h3>
+                            <p>สินค้าใหม่ทุกวัน</p>
+                            <button>ดูเลย</button>
+                        </div>
+                        <div class="promo-card promo-3" onclick="filterCategory('beauty')">
+                            <h3>💄 ความงาม</h3>
+                            <p>แบรนด์ดังราคาดี</p>
+                            <button>ซื้อเลย</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ALL PRODUCTS -->
+            <section class="products-section">
+                <div class="container">
+                    <div class="section-header">
+                        <h2>🛍️ สินค้าแนะนำสำหรับคุณ</h2>
+                    </div>
+                    <div class="products-grid" id="all-products"></div>
+                    <div class="load-more-wrap">
+                        <button class="btn-load-more" onclick="loadMore()" id="load-more-btn">โหลดเพิ่มเติม</button>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+
+        <!-- PRODUCT DETAIL PAGE -->
+        <div id="page-product" class="page">
+            <div class="container">
+                <div class="breadcrumb" id="product-breadcrumb"></div>
+                <div class="product-detail-layout">
+                    <div class="product-gallery">
+                        <div class="main-image" id="product-main-image"></div>
+                        <div class="thumbnail-row" id="product-thumbnails"></div>
+                    </div>
+                    <div class="product-info" id="product-info"></div>
+                </div>
+                <div class="product-tabs">
+                    <div class="tab-buttons">
+                        <button class="tab-btn active" onclick="switchTab('desc')">รายละเอียดสินค้า</button>
+                        <button class="tab-btn" onclick="switchTab('specs')">ข้อมูลจำเพาะ</button>
+                        <button class="tab-btn" onclick="switchTab('reviews')">รีวิว (<span
+                                id="review-count">0</span>)</button>
+                    </div>
+                    <div class="tab-content" id="tab-desc"></div>
+                    <div class="tab-content hidden" id="tab-specs"></div>
+                    <div class="tab-content hidden" id="tab-reviews"></div>
+                </div>
+                <div class="related-section">
+                    <h3>🔗 สินค้าที่เกี่ยวข้อง</h3>
+                    <div class="products-row" id="related-products"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CART PAGE -->
+        <div id="page-cart" class="page">
+            <div class="container">
+                <h2 class="page-title">🛒 ตะกร้าสินค้า</h2>
+                <div class="cart-layout">
+                    <div class="cart-items" id="cart-items"></div>
+                    <div class="cart-summary" id="cart-summary"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CHECKOUT PAGE -->
+        <div id="page-checkout" class="page">
+            <div class="container">
+                <h2 class="page-title">💳 ชำระเงิน</h2>
+                <div class="checkout-layout">
+                    <div class="checkout-form" id="checkout-form"></div>
+                    <div class="checkout-summary" id="checkout-summary"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ORDER SUCCESS PAGE -->
+        <div id="page-success" class="page">
+            <div class="container">
+                <div class="success-box">
+                    <div class="success-icon">✅</div>
+                    <h2>สั่งซื้อสำเร็จ!</h2>
+                    <p>ขอบคุณที่ช้อปกับ ShopNow 💖</p>
+                    <p id="success-order-id"></p>
+                    <button class="btn-primary" onclick="openPage('orders')">📦 ดูคำสั่งซื้อ</button>
+                    <button class="btn-outline" onclick="openPage('home')">🛍️ ช้อปต่อ</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ORDERS PAGE -->
+        <div id="page-orders" class="page">
+            <div class="container">
+                <h2 class="page-title">📦 คำสั่งซื้อของฉัน</h2>
+                <div class="orders-tabs">
+                    <button class="order-tab-btn active" onclick="filterOrders('all')">ทั้งหมด</button>
+                    <button class="order-tab-btn" onclick="filterOrders('pending')">รอชำระ</button>
+                    <button class="order-tab-btn" onclick="filterOrders('shipping')">กำลังส่ง</button>
+                    <button class="order-tab-btn" onclick="filterOrders('delivered')">ส่งแล้ว</button>
+                </div>
+                <div id="orders-list"></div>
+            </div>
+        </div>
+
+        <!-- WISHLIST PAGE -->
+        <div id="page-wishlist" class="page">
+            <div class="container">
+                <h2 class="page-title">❤️ รายการโปรด</h2>
+                <div class="products-grid" id="wishlist-grid"></div>
+            </div>
+        </div>
+
+        <!-- PROFILE PAGE -->
+        <div id="page-profile" class="page">
+            <div class="container">
+                <div class="profile-layout">
+                    <div class="profile-sidebar" id="profile-sidebar"></div>
+                    <div class="profile-content" id="profile-content"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SHOP PAGE -->
+        <div id="page-shop" class="page">
+            <div class="container">
+                <div id="shop-header-page"></div>
+                <div id="shop-promotions-section"></div>
+                <div class="products-grid" id="shop-products-grid" style="margin-top:24px"></div>
+            </div>
+        </div>
+
+        <!-- SEARCH RESULTS PAGE -->
+        <div id="page-search" class="page">
+            <div class="container">
+                <div class="search-header" id="search-header"></div>
+                <div class="search-layout">
+                    <div class="filter-sidebar" id="filter-sidebar"></div>
+                    <div class="search-results">
+                        <div class="sort-bar" id="sort-bar"></div>
+                        <div class="products-grid" id="search-results-grid"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SELLER LANDING PAGE -->
+        <div id="page-seller" class="page">
+            <div class="container">
+                <div class="seller-hero">
+                    <h1>🏪 เปิดร้านค้ากับ ShopNow</h1>
+                    <p>เริ่มขายสินค้าออนไลน์ง่ายๆ ใน 3 ขั้นตอน</p>
+                </div>
+                <div class="seller-steps">
+                    <div class="step-card">
+                        <div class="step-num">1</div>
+                        <div class="step-emoji">📝</div>
+                        <h3>สมัครสมาชิก</h3>
+                        <p>สมัครฟรี ไม่มีค่าใช้จ่าย</p>
+                    </div>
+                    <div class="step-card">
+                        <div class="step-num">2</div>
+                        <div class="step-emoji">📦</div>
+                        <h3>ลงสินค้า</h3>
+                        <p>เพิ่มสินค้าได้ไม่จำกัด</p>
+                    </div>
+                    <div class="step-card">
+                        <div class="step-num">3</div>
+                        <div class="step-emoji">💰</div>
+                        <h3>รับเงิน</h3>
+                        <p>โอนเงินทุกสัปดาห์</p>
+                    </div>
+                </div>
+                <div class="seller-cta">
+                    <button class="btn-primary" onclick="goSellerDash()">เริ่มขายเลย / เข้าร้านค้า</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- SELLER DASHBOARD -->
+        <div id="page-seller-dash" class="page">
+            <div class="seller-dash-layout">
+                <!-- Sidebar -->
+                <aside class="seller-sidebar">
+                    <div class="seller-brand">
+                        <div style="font-size:36px">🏪</div>
+                        <div id="sd-shop-name" style="font-weight:700;font-size:15px">ร้านของฉัน</div>
+                        <div style="font-size:12px;color:rgba(255,255,255,.6)">Seller Dashboard</div>
+                    </div>
+                    <nav class="seller-nav">
+                        <a class="seller-nav-item active" id="snav-overview" onclick="sdTab('overview')">📊 ภาพรวม</a>
+                        <a class="seller-nav-item" id="snav-products" onclick="sdTab('products')">📦 สินค้าของฉัน</a>
+                        <a class="seller-nav-item" id="snav-add" onclick="sdTab('add')">➕ เพิ่มสินค้า</a>
+                        <a class="seller-nav-item" id="snav-orders" onclick="sdTab('orders')">🛒 คำสั่งซื้อ</a>
+                        <a class="seller-nav-item" id="snav-vouchers" onclick="sdTab('vouchers')">🎟️ คูปองร้านค้า</a>
+                        <a class="seller-nav-item" id="snav-shipping" onclick="sdTab('shipping')">🚚 การจัดส่ง</a>
+                        <a class="seller-nav-item" id="snav-settings" onclick="sdTab('settings')">⚙️ ตั้งค่าร้าน</a>
+                    </nav>
+                    <div style="padding:16px">
+                        <button onclick="openPage('home')"
+                            style="width:100%;padding:10px;background:rgba(255,255,255,.15);color:#fff;border-radius:8px;font-family:var(--font);font-size:13px">←
+                            กลับหน้าร้าน</button>
+                    </div>
+                </aside>
+                <!-- Content -->
+                <div class="seller-content" id="seller-content"></div>
+            </div>
+            <!-- ADMIN DASHBOARD -->
+            <div id="page-admin-dash" class="page">
+                <div class="seller-dash-layout">
+                    <!-- Sidebar -->
+                    <aside class="seller-sidebar" style="background: var(--text-1)">
+                        <div class="seller-brand">
+                            <div style="font-size:36px">🛠️</div>
+                            <div style="font-weight:700;font-size:15px">เจ้าของเว็บไซต์</div>
+                            <div style="font-size:12px;color:rgba(255,255,255,.6)">Admin Management</div>
+                        </div>
+                        <nav class="seller-nav">
+                            <a class="admin-nav-item active" id="anav-banners" onclick="admTab('banners')">🖼️
+                                จัดการแบนเนอร์</a>
+                            <a class="admin-nav-item" id="anav-users" onclick="admTab('users')">👥 จัดการผู้ใช้</a>
+                        </nav>
+                        <div style="padding:16px">
+                            <button onclick="openPage('home')"
+                                style="width:100%;padding:10px;background:rgba(255,255,255,.15);color:#fff;border-radius:8px;font-family:var(--font);font-size:13px">←
+                                กลับหน้าร้าน</button>
+                        </div>
+                    </aside>
+                    <!-- Content -->
+                    <div class="seller-content" id="admin-content"></div>
+                </div>
+            </div>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-col">
+                    <div class="footer-logo">🛒 ShopNow</div>
+                    <p>ร้านค้าออนไลน์อันดับ 1 ราคาถูก สินค้าคุณภาพ ส่งไว</p>
+                    <div class="footer-social">
+                        <a href="#">📘</a>
+                        <a href="#">📷</a>
+                        <a href="#">🐦</a>
+                        <a href="#">▶️</a>
+                    </div>
+                </div>
+                <div class="footer-col">
+                    <h4>เกี่ยวกับ ShopNow</h4>
+                    <a href="#">เกี่ยวกับเรา</a>
+                    <a href="#">ข่าวสาร</a>
+                    <a href="#">งานของเรา</a>
+                    <a href="#">นโยบายความเป็นส่วนตัว</a>
+                    <a href="#">เงื่อนไขการใช้บริการ</a>
+                </div>
+                <div class="footer-col">
+                    <h4>ช่วยเหลือ</h4>
+                    <a href="#">ศูนย์ช่วยเหลือ</a>
+                    <a href="#">ติดต่อเรา</a>
+                    <a href="#">วิธีสั่งซื้อ</a>
+                    <a href="#">การจัดส่ง</a>
+                    <a href="#">การคืนสินค้า</a>
+                </div>
+                <div class="footer-col">
+                    <h4>ชำระเงิน</h4>
+                    <div class="payment-icons">
+                        <span class="pay-icon">💳</span>
+                        <span class="pay-icon">🏦</span>
+                        <span class="pay-icon">📱</span>
+                        <span class="pay-icon">💵</span>
+                    </div>
+                    <h4 style="margin-top:16px">จัดส่งโดย</h4>
+                    <div class="payment-icons">
+                        <span class="pay-icon">📦</span>
+                        <span class="pay-icon">🚚</span>
+                        <span class="pay-icon">✈️</span>
+                    </div>
+                    <div class="app-download">
+                        <h4>ดาวน์โหลดแอป</h4>
+                        <button class="btn-app">📱 App Store</button>
+                        <button class="btn-app">🤖 Google Play</button>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>© 2025 ShopNow. สงวนลิขสิทธิ์ทุกประการ</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- MODALS -->
+
+    <!-- Login Modal -->
+    <div class="modal-overlay" id="login-modal" onclick="closeModalOutside(event, 'login-modal')">
+        <div class="modal">
+            <button class="modal-close" onclick="closeModal('login-modal')">✕</button>
+            <div class="modal-logo">🛒 ShopNow</div>
+            <h2>เข้าสู่ระบบ</h2>
+            <div class="tabs-auth">
+                <button class="auth-tab active" onclick="switchAuthTab('phone')">เบอร์โทร</button>
+                <button class="auth-tab" onclick="switchAuthTab('email')">อีเมล</button>
+            </div>
+            <div id="auth-phone">
+                <div class="form-group">
+                    <label>เบอร์โทรศัพท์</label>
+                    <input type="tel" id="login-phone" placeholder="08X-XXX-XXXX" />
+                </div>
+                <div class="form-group">
+                    <label>รหัสผ่าน</label>
+                    <div class="password-wrap">
+                        <input type="password" id="login-pass" placeholder="รหัสผ่าน" />
+                        <button class="eye-btn" onclick="togglePassword('login-pass')">👁️</button>
+                    </div>
+                </div>
+            </div>
+            <div id="auth-email" class="hidden">
+                <div class="form-group">
+                    <label>อีเมล</label>
+                    <input type="email" id="login-email" placeholder="example@email.com" />
+                </div>
+                <div class="form-group">
+                    <label>รหัสผ่าน</label>
+                    <div class="password-wrap">
+                        <input type="password" id="login-pass-email" placeholder="รหัสผ่าน" />
+                        <button class="eye-btn" onclick="togglePassword('login-pass-email')">👁️</button>
+                    </div>
+                </div>
+            </div>
+            <div class="forgot-wrap"><a href="#"
+                    onclick="openModal('forgot-modal');closeModal('login-modal')">ลืมรหัสผ่าน?</a></div>
+            <button class="btn-primary" onclick="doLogin()" id="login-btn">เข้าสู่ระบบ</button>
+            <div class="divider-text">หรือ</div>
+            <button class="btn-social" onclick="socialLogin('google')">🌐 เข้าสู่ระบบด้วย Google</button>
+            <button class="btn-social" onclick="socialLogin('facebook')">📘 เข้าสู่ระบบด้วย Facebook</button>
+            <div class="auth-switch">ยังไม่มีบัญชี? <a href="#"
+                    onclick="openModal('register-modal');closeModal('login-modal')">สมัครสมาชิก</a></div>
+        </div>
+    </div>
+
+    <!-- Register Modal -->
+    <div class="modal-overlay" id="register-modal" onclick="closeModalOutside(event, 'register-modal')">
+        <div class="modal">
+            <button class="modal-close" onclick="closeModal('register-modal')">✕</button>
+            <div class="modal-logo">🛒 ShopNow</div>
+            <h2>สมัครสมาชิก</h2>
+            <div class="form-group">
+                <label>ชื่อ-นามสกุล</label>
+                <input type="text" id="reg-name" placeholder="ชื่อ-นามสกุล" />
+            </div>
+            <div class="form-group">
+                <label>เบอร์โทรศัพท์</label>
+                <input type="tel" id="reg-phone" placeholder="08X-XXX-XXXX" />
+            </div>
+            <div class="form-group">
+                <label>อีเมล (ไม่บังคับ)</label>
+                <input type="email" id="reg-email" placeholder="example@email.com" />
+            </div>
+            <div class="form-group">
+                <label>รหัสผ่าน</label>
+                <div class="password-wrap">
+                    <input type="password" id="reg-pass" placeholder="อย่างน้อย 8 ตัวอักษร" />
+                    <button class="eye-btn" onclick="togglePassword('reg-pass')">👁️</button>
+                </div>
+            </div>
+            <div class="form-check">
+                <input type="checkbox" id="reg-is-seller" />
+                <label for="reg-is-seller" style="font-weight:600; color:var(--primary)">ต้องการขายสินค้าบน ShopNow
+                    (เปิดร้านค้า)</label>
+            </div>
+            <div class="form-check">
+                <input type="checkbox" id="reg-agree" />
+                <label for="reg-agree">ฉันยอมรับ <a href="#">เงื่อนไขการใช้บริการ</a> และ <a
+                        href="#">นโยบายความเป็นส่วนตัว</a></label>
+            </div>
+            <button class="btn-primary" onclick="doRegister()">สมัครสมาชิก</button>
+            <div class="auth-switch">มีบัญชีแล้ว? <a href="#"
+                    onclick="openModal('login-modal');closeModal('register-modal')">เข้าสู่ระบบ</a></div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- Quick View Modal -->
+    <div class="modal-overlay" id="quickview-modal" onclick="closeModalOutside(event, 'quickview-modal')">
+        <div class="modal modal-wide" id="quickview-content"></div>
+    </div>
+
+    <!-- Voucher Modal -->
+    <div class="modal-overlay" id="voucher-modal" onclick="closeModalOutside(event, 'voucher-modal')">
+        <div class="modal">
+            <button class="modal-close" onclick="closeModal('voucher-modal')">✕</button>
+            <h2>🎁 โค้ดส่วนลดของฉัน</h2>
+            <div class="voucher-list" id="voucher-list"></div>
+        </div>
+    </div>
+
+    <!-- Forgot Modal -->
+    <div class="modal-overlay" id="forgot-modal" onclick="closeModalOutside(event, 'forgot-modal')">
+        <div class="modal">
+            <button class="modal-close" onclick="closeModal('forgot-modal')">✕</button>
+            <h2>🔑 ลืมรหัสผ่าน</h2>
+            <p>กรอกอีเมลหรือเบอร์โทร เราจะส่งลิงก์รีเซ็ตรหัสผ่านให้คุณ</p>
+            <div class="form-group">
+                <input type="text" id="forgot-input" placeholder="อีเมล หรือ เบอร์โทร" />
+            </div>
+            <button class="btn-primary" onclick="doForgot()">ส่งลิงก์รีเซ็ต</button>
+        </div>
+    </div>
+
+    <script src="data.js"></script>
+    <script src="supabase.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>
