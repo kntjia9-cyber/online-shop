@@ -136,7 +136,7 @@ function refreshCurrentView() {
     } else if (page === 'shop' && state.lastViewedShop) {
         viewShop(state.lastViewedShop);
     } else if (page === 'seller-dash') {
-        sdTab(state.sellerTab);
+        initSellerProducts().then(() => sdTab(state.sellerTab));
     } else if (page === 'cart') {
         renderCart();
     }
@@ -1681,6 +1681,7 @@ async function doRegister() {
         console.error('❌ Cloud Failure:', err);
     }
 
+    await initSellerProducts(); // โหลดสินค้าของตนเองมารอไว้
     saveToStorage();
     updateUserUI();
     closeModal('register-modal');
@@ -1842,7 +1843,7 @@ function goSellerDash() {
 
     // Set shop name
     const el = document.getElementById('sd-shop-name');
-    if (el) el.textContent = (state.user.shopName || state.user.name + " Shop");
+    if (el) el.textContent = (state.user.shopName || (state.user.name + "'s Shop"));
     openPage('seller-dash');
 }
 
