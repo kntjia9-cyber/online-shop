@@ -113,6 +113,42 @@ async function signInOnline(email, password) {
 }
 
 /**
+ * ฟังก์ชันเข้าสู่ระบบผ่านเบอร์โทรใน Cloud (กรณีไม่มี Email)
+ */
+async function signInWithPhoneOnline(phone, password) {
+    if (!await isOnline()) return { data: null, error: { message: 'Cloud Offline' } };
+    try {
+        const client = getSupabase();
+        // ค้นหาแบบธรรมดา แทนการใช้ single() เพื่อป้องกัน error กรณีมีข้อมูลซ้ำซ้อนในระบบเดิม
+        const { data, error } = await client.from('users')
+            .select('*')
+            .eq('phone', phone)
+            .eq('password', password)
+            .limit(1);
+
+        if (error) return { data: null, error };
+        if (!data || data.length === 0) return { data: null, error: { message: 'ไม่พบผู้ใช้งานหรือรหัสผ่านผิด' } };
+
+        const userData = data[0];
+        // แปลงกลับเป็น CamelCase
+        const user = {
+            id: userData.id,
+            email: userData.email,
+            phone: userData.phone,
+            name: userData.name,
+            role: userData.role,
+            isSeller: userData.is_seller,
+            shopName: userData.shop_name,
+            isAdmin: userData.is_admin,
+            pass: userData.password
+        };
+        return { data: { user }, error: null };
+    } catch (err) {
+        return { data: null, error: err };
+    }
+}
+
+/**
  * อัปเดตโปรไฟล์ออนไลน์ (Auth User & Database)
  */
 async function updateUserOnline(fullName, metadata = {}) {
@@ -148,6 +184,7 @@ async function saveOnlineUser(user) {
             email: user.email,
             name: user.name,
             phone: user.phone || '',
+            password: user.pass || '', // เก็บไว้สำหรับ Login ผ่านเบอร์ใน Cloud
             role: user.role || 'user',
             is_seller: user.isSeller || false,
             shop_name: user.shopName || '',

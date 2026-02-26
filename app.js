@@ -1496,10 +1496,7 @@ async function doLogin() {
             // ☁️ Sync ลงฐานข้อมูลออนไลน์ด้วย (เผื่อยังไม่มีในตาราง users)
             await syncUserToGlobalList();
 
-            saveToStorage();
-            updateUserUI();
-            closeModal('login-modal');
-            showToast('success', '🎉 ยินดีต้อนรับกลับมาครับ!');
+            loginSuccess();
         }
         return;
     }
@@ -1523,13 +1520,27 @@ async function doLogin() {
             return;
         }
         state.user = userFound;
-        saveToStorage();
-        updateUserUI();
-        closeModal('login-modal');
-        showToast('success', '🎉 เข้าสู่ระบบสำเร็จ!');
+        loginSuccess();
     } else {
-        showToast('error', '❌ ไม่พบบัญชีนี้ โปรดตรวจสอบรหัสผ่าน หรือลองใช้แท็บ "อีเมล"');
+        // ☁️ ลองหาใน Cloud (Fallback สำหรับกรณีเปลี่ยนเครื่อง)
+        showToast('info', '⌛ กำลังตรวจสอบบัญชีออนไลน์...');
+        const { data, error } = await signInWithPhoneOnline(phone, pass);
+        if (data?.user) {
+            state.user = data.user;
+            loginSuccess();
+        } else {
+            const errorMsg = error?.message || 'ไม่พบบัญชีนี้ หรือรหัสผ่านไม่ถูกต้อง';
+            showToast('error', `❌ ${errorMsg}`);
+            console.error('Cloud Login Error:', error);
+        }
     }
+}
+
+function loginSuccess() {
+    saveToStorage();
+    updateUserUI();
+    closeModal('login-modal');
+    showToast('success', '🎉 ยินดีต้อนรับกลับมาครับ!');
 }
 
 function switchAuthTab(type) {
@@ -1564,11 +1575,13 @@ async function doRegister() {
     if (!agree) { showToast('error', '❌ กรุณายอมรับเงื่อนไขการใช้บริการ'); return; }
 
     // ☁️ จัดเตรียมข้อมูลสมาชิกสำหรับ Cloud
+    // ปรับ ID ให้คงที่ตามเบอร์โทรเพื่อป้องกัน duplicate
     let newUser = {
-        id: email ? null : 'phone-' + (phone || Date.now()),
+        id: email ? null : 'p-' + phone,
         email: email || '',
         phone: phone || '',
         name: name,
+        pass: pass, // เก็บรหัสไว้สำหรับ Sync
         role: 'user',
         isSeller: isSeller || false,
         shopName: isSeller ? (name + "'s Shop") : '',
