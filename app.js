@@ -394,7 +394,9 @@ function productCard(p, isRow = false) {
     return `
   <div class="product-card${isRow ? ' row-card' : ''}" id="pcard-${p.id}">
     <div class="product-img-wrap" onclick="viewProduct(${p.id})">
-      <div class="product-emoji">${p.emoji}</div>
+      <div class="product-emoji">
+        ${p.image ? `<img src="${p.image}" style="width:100%; height:100%; object-fit:cover">` : p.emoji}
+      </div>
       ${p.badge ? `<span class="product-badge badge-${p.badge}">${p.badge === 'new' ? 'ใหม่' : p.badge === 'hot' ? '🔥ฮิต' : `ลด${discount}%`}</span>` : ''}
       <button class="product-wishlist${liked ? ' liked' : ''}" onclick="toggleWishlist(event,${p.id})">${liked ? '❤️' : '🤍'}</button>
       <div class="add-to-cart-overlay" onclick="addToCart(event,${p.id})">🛒 เพิ่มลงตะกร้า</div>
@@ -470,11 +472,17 @@ function viewProduct(id) {
     document.getElementById('product-breadcrumb').innerHTML =
         `<a href="#" onclick="openPage('home')">หน้าหลัก</a> › <a href="#" onclick="filterCategory('${p.category}')">${getCatName(p.category)}</a> › ${p.name.substring(0, 40)}...`;
 
-    document.getElementById('product-main-image').innerHTML = `<div style="font-size:120px">${p.emoji}</div>`;
+    document.getElementById('product-main-image').innerHTML = p.image
+        ? `<img src="${p.image}" style="width:100%; height:100%; object-fit:contain">`
+        : `<div style="font-size:120px">${p.emoji}</div>`;
+
     document.getElementById('product-thumbnails').innerHTML =
-        [p.emoji, p.emoji, p.emoji].map((e, i) =>
-            `<div class="thumb${i === 0 ? ' active' : ''}" onclick="selectThumb(this,'${e}')">${e}</div>`
-        ).join('');
+        [p.image || p.emoji, p.emoji, p.emoji].map((item, i) => {
+            const isImg = p.image && i === 0;
+            return `<div class="thumb${i === 0 ? ' active' : ''}" onclick="selectThumb(this)">
+                ${isImg ? `<img src="${item}" style="width:100%; height:100%; object-fit:cover">` : `<span style="font-size:20px">${item}</span>`}
+            </div>`;
+        }).join('');
 
     const discount = p.originalPrice ? Math.round((1 - p.price / p.originalPrice) * 100) : 0;
     const liked = state.wishlist.includes(p.id);
@@ -534,10 +542,16 @@ function viewProduct(id) {
     document.getElementById('related-products').innerHTML = related.map(x => productCard(x, true)).join('');
 }
 
-function selectThumb(el, emoji) {
+function selectThumb(el) {
     document.querySelectorAll('.thumb').forEach(t => t.classList.remove('active'));
     el.classList.add('active');
-    document.getElementById('product-main-image').innerHTML = `<div style="font-size:120px">${emoji}</div>`;
+    const main = document.getElementById('product-main-image');
+    if (main) {
+        main.innerHTML = el.innerHTML;
+        // ปรับขนาดถ้าเป็นอิโมจิ
+        const span = main.querySelector('span');
+        if (span) span.style.fontSize = '120px';
+    }
 }
 
 function selectOption(el, type, val) {
@@ -2041,6 +2055,46 @@ function renderSdOverview(el) {
     </div>`;
 }
 
+/**
+ * บีบอัดและปรับขนาดรูปภาพให้เป็นสี่เหลี่ยมจัตุรัส
+ */
+async function processProductImage(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const size = 400; // ขนาดมาตรฐาน 400x400 px
+                canvas.width = size;
+                canvas.height = size;
+                const ctx = canvas.getContext('2d');
+
+                // คำนวณการตัดรูปให้เป็นสี่เหลี่ยมจัตุรัส (Crop to Square)
+                let sx, sy, sSide;
+                if (img.width > img.height) {
+                    sSide = img.height;
+                    sx = (img.width - img.height) / 2;
+                    sy = 0;
+                } else {
+                    sSide = img.width;
+                    sx = 0;
+                    sy = (img.height - img.width) / 2;
+                }
+
+                ctx.drawImage(img, sx, sy, sSide, sSide, 0, 0, size, size);
+
+                // บีบอัดเป็น JPEG คุณภาพ 0.7 (70%)
+                resolve(canvas.toDataURL('image/jpeg', 0.7));
+            };
+            img.onerror = reject;
+            img.src = e.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
 function renderSdProducts(el) {
     el.innerHTML = `
         <div class="sd-header">
@@ -2083,6 +2137,10 @@ function renderSdAddForm(el, editId) {
     const p = editId ? sellerProducts.find(x => x.id === editId) : null;
     selectedEmoji = p ? p.emoji : '📦';
     const emojis = ['📦', '📱', '💻', '🎧', '👗', '👔', '👟', '💄', '🧴', '✨', '🏡', '🛋️', '☕', '⚽', '🏋️', '🧸', '📚', '🚗', '🐾', '🍜', '🍕', '🥤', '💍', '🎮', '🎵', '🌸', '🎁', '🔧', '⌚', '👜'];
+
+    // 🖼️ เก็บค่ารูปภาพปัจจุบัน (ถ้ามี)
+    window.tempProductImage = p?.image || null;
+
     el.innerHTML = `
         <div class="sd-header">
         <h2>${editId ? '✏️ แก้ไขสินค้า' : '➕ เพิ่มสินค้าใหม่'}</h2>
@@ -2090,12 +2148,28 @@ function renderSdAddForm(el, editId) {
     </div>
         <div class="sd-form">
             <h3>📋 ข้อมูลสินค้า</h3>
+            
+            <div style="background:#f8f9fa; padding:20px; border-radius:12px; margin-bottom:20px; border:1px solid #eee">
+                <label style="display:block; margin-bottom:12px; font-weight:600">รูปภาพสินค้า (แนะนำรูปสี่เหลี่ยมจัตุรัส)</label>
+                <div style="display:flex; gap:20px; align-items:center">
+                    <div id="sp-img-preview" style="width:100px; height:100px; border-radius:10px; border:2px dashed #ccc; background:#fff; display:flex; align-items:center; justify-content:center; overflow:hidden">
+                        ${p?.image ? `<img src="${p.image}" style="width:100%; height:100%; object-fit:cover">` : `<span style="font-size:32px">${selectedEmoji}</span>`}
+                    </div>
+                    <div>
+                        <input type="file" id="sp-img-file" accept="image/*" style="display:none" onchange="handleProductImage(this)">
+                        <button class="btn-sd btn-sd-outline" onclick="document.getElementById('sp-img-file').click()">📸 เลือกรูปภาพ</button>
+                        <p style="font-size:11px; color:#777; margin-top:8px">บีบอัดและปรับขนาดให้อัตโนมัติ (Square format)</p>
+                    </div>
+                </div>
+            </div>
+
             <div class="form-group">
-                <label>ไอคอนสินค้า</label>
+                <label>ไอคอนสำรอง (ใช้อ้างอิงหมวดหมู่)</label>
                 <div class="emoji-picker" id="emoji-picker">
                     ${emojis.map(e => `<div class="emoji-opt${e === selectedEmoji ? ' active' : ''}" onclick="pickEmoji(this,'${e}')">${e}</div>`).join('')}
                 </div>
             </div>
+            
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
                 <div class="form-group">
                     <label>รหัสสินค้า (SKU) <small style="color:#999">(ถ้าว่างไว้ระบบจะสร้างให้)</small></label>
@@ -2159,10 +2233,38 @@ function renderSdAddForm(el, editId) {
         </div>`;
 }
 
+/**
+ * จัดการเมื่อมีการเลือกรูป
+ */
+async function handleProductImage(input) {
+    if (input.files && input.files[0]) {
+        try {
+            showToast('info', '⌛ กำลังประมวลผลรูปภาพ...');
+            const processed = await processProductImage(input.files[0]);
+            window.tempProductImage = processed;
+
+            const preview = document.getElementById('sp-img-preview');
+            if (preview) {
+                preview.innerHTML = `<img src="${processed}" style="width:100%; height:100%; object-fit:cover">`;
+            }
+            showToast('success', '✅ ประมวลผลรูปภาพสำเร็จ!');
+        } catch (err) {
+            console.error(err);
+            showToast('error', '❌ ไม่สามารถประมวลผลรูปภาพได้');
+        }
+    }
+}
+
 function pickEmoji(el, emoji) {
     document.querySelectorAll('.emoji-opt').forEach(e => e.classList.remove('active'));
     el.classList.add('active');
     selectedEmoji = emoji;
+
+    // ถ้าไม่มีรูปภาพ ให้เปลี่ยน Preview เป็น Emoji
+    if (!window.tempProductImage) {
+        const preview = document.getElementById('sp-img-preview');
+        if (preview) preview.innerHTML = `<span style="font-size:32px">${emoji}</span>`;
+    }
 }
 
 async function saveProduct() {
@@ -2223,13 +2325,13 @@ async function saveProduct() {
     if (editingProductId) {
         const idx = sellerProducts.findIndex(p => String(p.id) === String(editingProductId));
         if (idx >= 0) {
-            pData = { ...sellerProducts[idx], sku: finalSku, name, price, stock, category, desc, originalPrice, shop, shopBadge, tags, badge, optionTitle, options, emoji: selectedEmoji };
+            pData = { ...sellerProducts[idx], sku: finalSku, name, price, stock, category, desc, originalPrice, shop, shopBadge, tags, badge, optionTitle, options, emoji: selectedEmoji, image: window.tempProductImage };
             sellerProducts[idx] = pData;
             showToast('success', '✅ แก้ไขสินค้าเรียบร้อย!');
         }
     } else {
         const newId = Date.now();
-        pData = { id: newId, sku: finalSku, name, price, originalPrice, stock, category, desc, shop, shopBadge, tags, badge, optionTitle, options, emoji: selectedEmoji, rating: 5.0, sold: 0, reviews: [], specs: {} };
+        pData = { id: newId, sku: finalSku, name, price, originalPrice, stock, category, desc, shop, shopBadge, tags, badge, optionTitle, options, emoji: selectedEmoji, image: window.tempProductImage, rating: 5.0, sold: 0, reviews: [], specs: {} };
         sellerProducts.push(pData);
         showToast('success', '🎉 เพิ่มสินค้าใหม่สำเร็จ!');
     }

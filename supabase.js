@@ -73,7 +73,8 @@ async function saveOnlineProduct(p) {
             shop_badge: p.shopBadge,
             options: p.options,
             option_title: p.optionTitle,
-            description: p.desc
+            description: p.desc,
+            image: p.image || null
         };
         const { error } = await client.from('products').upsert(dbData);
         if (error) {
