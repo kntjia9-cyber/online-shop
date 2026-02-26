@@ -1480,16 +1480,26 @@ async function doRegister() {
         console.log('🚀 Attempting to sync new user to cloud table...', state.user);
         try {
             await saveOnlineUser(state.user);
-            console.log('✅ Cloud table sync confirmed.');
+
+            // 🔍 ตรวจสอบซ้ำทันทีว่าใน Cloud มีคนนี้จริงไหม
+            const onlineUsers = await fetchOnlineUsers();
+            const verify = onlineUsers.find(u => u.email === email);
+
+            if (verify) {
+                console.log('✅ Cloud Verification Success:', verify);
+                showToast('success', '🎉 สมัครสมาชิกและบันทึกลง Cloud สำเร็จ!');
+            } else {
+                console.warn('❌ Cloud Verification Failed: Data not found after save');
+                showToast('error', '⚠️ ระบบบันทึกลง Cloud ไม่สำเร็จ (Data Missing)');
+            }
         } catch (syncErr) {
             console.error('❌ Cloud sync failed:', syncErr);
-            showToast('error', '⚠️ ตารางฐานข้อมูลมีปัญหา ข้อมูลสมาชิกอาจไม่ถูกบันทึก');
+            showToast('error', '⚠️ ระบบ Cloud ขัดข้อง');
         }
 
         saveToStorage();
         updateUserUI();
         closeModal('register-modal');
-        showToast('success', '🎉 สมัครสมาชิกออนไลน์สำเร็จ! ข้อมูลถูกบันทึกลง Cloud แล้ว');
         return;
     }
 
