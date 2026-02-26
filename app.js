@@ -1086,23 +1086,37 @@ function closeSuggestions() {
 }
 
 // ===== CHECKOUT =====
-function renderCheckout() {
+async function renderCheckout() {
     const formEl = document.getElementById('checkout-form');
     const sumEl = document.getElementById('checkout-summary');
     if (!formEl || !sumEl) return;
+
+    // ☁️ ดึงข้อมูล profile ล่าสุดจาก Supabase ก่อน render
+    if (state.user?.id) {
+        const latestProfile = await getOnlineUserProfile(state.user.id);
+        if (latestProfile) {
+            state.user = { ...state.user, ...latestProfile };
+            saveToStorage();
+        }
+    }
+
+    // แยกชื่อ-นามสกุล
+    const nameParts = (state.user?.name || '').trim().split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
 
     formEl.innerHTML = `
     <div class="checkout-section">
       <h3>📍 ที่อยู่จัดส่ง</h3>
       <div class="form-row">
-        <div class="form-group"><label>ชื่อ</label><input id="co-fname" placeholder="ชื่อ" value="${state.user?.name?.split(' ')[0] || ''}" /></div>
-        <div class="form-group"><label>นามสกุล</label><input id="co-lname" placeholder="นามสกุล" /></div>
+        <div class="form-group"><label>ชื่อ</label><input id="co-fname" placeholder="ชื่อ" value="${firstName}" /></div>
+        <div class="form-group"><label>นามสกุล</label><input id="co-lname" placeholder="นามสกุล" value="${lastName}" /></div>
       </div>
       <div class="form-group"><label>เบอร์โทร</label><input id="co-phone" placeholder="08X-XXX-XXXX" value="${state.user?.phone || ''}" /></div>
       <div class="form-group"><label>ที่อยู่</label><textarea id="co-addr" rows="3" placeholder="บ้านเลขที่ ถนน แขวง เขต">${state.user?.address || ''}</textarea></div>
       <div class="form-row">
         <div class="form-group"><label>จังหวัด</label><select id="co-province"><option>กรุงเทพมหานคร</option><option>เชียงใหม่</option><option>ภูเก็ต</option><option>ขอนแก่น</option><option>นครราชสีมา</option><option>สงขลา</option></select></div>
-        <div class="form-group"><label>รหัสไปรษณีย์</label><input id="co-zip" placeholder="10XXX" /></div>
+        <div class="form-group"><label>รหัสไปรษณีย์</label><input id="co-zip" placeholder="10XXX" value="${state.user?.zip || ''}" /></div>
       </div>
     </div>
     <div class="checkout-section">
