@@ -2710,10 +2710,10 @@ function renderSdOrders(el) {
                                 <option value="shipping" ${o.status === 'shipping' ? 'selected' : ''}>กำลังส่ง</option>
                                 <option value="delivered" ${o.status === 'delivered' ? 'selected' : ''}>ส่งแล้ว</option>
                             </select>
-                            <div style="display:flex;gap:4px">
-                                <input id="track-${o.id}" type="text" placeholder="เลขแทร็กกิ้ง" value="${o.trackingNum || ''}" style="width:100px;font-size:11px;padding:4px;border:1px solid var(--border);border-radius:4px">
-                                <button class="btn-sd btn-sd-primary" style="padding:4px 8px;font-size:10px" onclick="updateTracking('${o.id}')">💾</button>
-                                <button class="btn-sd" style="padding:4px 8px;font-size:10px;background:#607d8b;color:#fff" onclick="printOrder('${o.id}')">🖨️ พิมพ์</button>
+                            <div style="display:flex;gap:6px">
+                                <input id="track-${o.id}" type="text" placeholder="เลขแทร็กกิ้ง" value="${o.trackingNum || ''}" style="width:120px;font-size:12px;padding:8px;border:1px solid var(--border);border-radius:6px">
+                                <button class="btn-sd btn-sd-primary" style="padding:8px 16px;font-size:14px" onclick="updateTracking('${o.id}')">💾 บันทึก</button>
+                                <button class="btn-sd" style="padding:8px 16px;font-size:14px;background:#607d8b;color:#fff" onclick="printOrder('${o.id}')">🖨️ พิมพ์</button>
                             </div>
                         </div>
                     </td>
@@ -2780,20 +2780,23 @@ function printOrder(orderId) {
         <head>
             <title>ใบสั่งซื้อ #${o.id}</title>
             <style>
-                body { font-family: 'Sarabun', sans-serif; padding: 40px; color: #333; line-height: 1.6; }
-                .header { display: flex; justify-content: space-between; border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 20px; }
-                .shop-info h1 { margin: 0; color: #1a73e8; }
+                body { font-family: 'Sarabun', sans-serif; padding: 20px; color: #333; line-height: 1.4; font-size: 13px; }
+                .header { display: flex; justify-content: space-between; border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 15px; }
+                .shop-info h1 { margin: 0; color: #1a73e8; font-size: 20px; }
+                .shop-info p { margin: 2px 0; font-size: 11px; color: #666; }
                 .order-info { text-align: right; }
-                .section { margin-bottom: 30px; }
-                .section-title { font-weight: bold; border-bottom: 1px solid #ddd; margin-bottom: 10px; padding-bottom: 5px; }
-                table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-                th, td { padding: 12px; border-bottom: 1px solid #eee; text-align: left; }
+                .order-info h2 { font-size: 16px; }
+                .order-info p { margin: 2px 0; font-size: 11px; }
+                .section { margin-bottom: 15px; }
+                .section-title { font-weight: bold; border-bottom: 1px solid #ddd; margin-bottom: 5px; padding-bottom: 3px; font-size: 12px; }
+                table { width: 100%; border-collapse: collapse; margin-top: 5px; font-size: 12px; }
+                th, td { padding: 8px; border-bottom: 1px solid #eee; text-align: left; }
                 th { background: #f8f9fa; }
-                .total-box { margin-left: auto; width: 300px; margin-top: 20px; }
-                .total-row { display: flex; justify-content: space-between; padding: 5px 0; }
-                .total-row.grand { border-top: 2px solid #333; margin-top: 10px; padding-top: 10px; font-weight: bold; font-size: 1.2em; color: #d32f2f; }
-                .footer { margin-top: 50px; text-align: center; font-size: 12px; color: #999; border-top: 1px solid #eee; padding-top: 20px; }
-                @media print { .no-print { display: none; } }
+                .total-box { margin-left: auto; width: 220px; margin-top: 10px; }
+                .total-row { display: flex; justify-content: space-between; padding: 3px 0; }
+                .total-row.grand { border-top: 1px solid #333; margin-top: 5px; padding-top: 5px; font-weight: bold; font-size: 14px; color: #d32f2f; }
+                .footer { margin-top: 30px; text-align: center; font-size: 10px; color: #999; border-top: 1px solid #eee; padding-top: 15px; }
+                @media print { .no-print { display: none; } body { padding: 0; } }
             </style>
         </head>
         <body>
