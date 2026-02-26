@@ -2780,98 +2780,106 @@ function printOrder(orderId) {
         <head>
             <title>ใบสั่งซื้อ #${o.id}</title>
             <style>
-                body { font-family: 'Sarabun', sans-serif; padding: 20px; color: #333; line-height: 1.4; font-size: 13px; }
-                .header { display: flex; justify-content: space-between; border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 15px; }
-                .shop-info h1 { margin: 0; color: #1a73e8; font-size: 20px; }
-                .shop-info p { margin: 2px 0; font-size: 11px; color: #666; }
+                @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap');
+                body { font-family: 'Sarabun', sans-serif; padding: 15px; color: #333; line-height: 1.3; font-size: 11px; display: flex; justify-content: center; background: #f0f0f0; }
+                .page { width: 148mm; background: white; padding: 20px; box-shadow: 0 0 10px rgba(0,0,0,0.1); box-sizing: border-box; min-height: 210mm; position: relative; }
+                .header { display: flex; justify-content: space-between; border-bottom: 1px dashed #333; padding-bottom: 8px; margin-bottom: 12px; }
+                .shop-info h1 { margin: 0; color: #1a73e8; font-size: 18px; }
+                .shop-info p { margin: 1px 0; font-size: 10px; color: #666; }
                 .order-info { text-align: right; }
-                .order-info h2 { font-size: 16px; }
-                .order-info p { margin: 2px 0; font-size: 11px; }
-                .section { margin-bottom: 15px; }
-                .section-title { font-weight: bold; border-bottom: 1px solid #ddd; margin-bottom: 5px; padding-bottom: 3px; font-size: 12px; }
-                table { width: 100%; border-collapse: collapse; margin-top: 5px; font-size: 12px; }
-                th, td { padding: 8px; border-bottom: 1px solid #eee; text-align: left; }
-                th { background: #f8f9fa; }
-                .total-box { margin-left: auto; width: 220px; margin-top: 10px; }
-                .total-row { display: flex; justify-content: space-between; padding: 3px 0; }
-                .total-row.grand { border-top: 1px solid #333; margin-top: 5px; padding-top: 5px; font-weight: bold; font-size: 14px; color: #d32f2f; }
-                .footer { margin-top: 30px; text-align: center; font-size: 10px; color: #999; border-top: 1px solid #eee; padding-top: 15px; }
-                @media print { .no-print { display: none; } body { padding: 0; } }
+                .order-info h2 { font-size: 14px; margin: 0; }
+                .order-info p { margin: 1px 0; font-size: 10px; }
+                .section { margin-bottom: 12px; }
+                .section-title { font-weight: bold; border-left: 3px solid #1a73e8; padding-left: 7px; margin-bottom: 5px; font-size: 11px; background: #f8f9fa; }
+                table { width: 100%; border-collapse: collapse; margin-top: 5px; font-size: 10px; }
+                th, td { padding: 6px; border-bottom: 1px solid #eee; text-align: left; }
+                th { background: #f8f9fa; font-weight: bold; }
+                .total-box { margin-left: auto; width: 180px; margin-top: 10px; }
+                .total-row { display: flex; justify-content: space-between; padding: 2px 0; }
+                .total-row.grand { border-top: 1px solid #333; margin-top: 5px; padding-top: 5px; font-weight: bold; font-size: 13px; color: #d32f2f; }
+                
+                /* Shipping Label Styles */
+                .shipping-label { 
+                    margin-top: 30px; 
+                    border: 2px solid #000; 
+                    padding: 15px; 
+                    border-radius: 8px;
+                    background: #fff;
+                }
+                .label-tag { font-size: 10px; font-weight: bold; text-transform: uppercase; color: #fff; background: #000; padding: 2px 8px; display: inline-block; margin-bottom: 8px; border-radius: 4px; }
+                .customer-name { font-size: 16px; font-weight: bold; margin-bottom: 5px; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
+                .customer-address { font-size: 13px; font-weight: 400; line-height: 1.5; }
+                
+                .footer { margin-top: 20px; text-align: center; font-size: 9px; color: #999; }
+                @media print { 
+                    body { background: none; padding: 0; }
+                    .page { box-shadow: none; margin: 0; width: 100%; min-height: auto; }
+                    .no-print { display: none; } 
+                }
             </style>
         </head>
         <body>
-            <div class="header">
-                <div class="shop-info">
-                    <h1>${state.user.shopName || state.user.name + "'s Shop"}</h1>
-                    <p>ใบกำกับภาษีอย่างย่อ / ใบเสร็จรับเงิน</p>
+            <div class="page">
+                <div class="header">
+                    <div class="shop-info">
+                        <h1>${state.user.shopName || state.user.name + "'s Shop"}</h1>
+                        <p>ใบสรุปรายการสั่งซื้อ</p>
+                    </div>
+                    <div class="order-info">
+                        <h2>#${o.id}</h2>
+                        <p>${o.date}</p>
+                    </div>
                 </div>
-                <div class="order-info">
-                    <h2 style="margin:0">เลขที่ #${o.id}</h2>
-                    <p>วันที่สั่งซื้อ: ${o.date}</p>
-                </div>
-            </div>
 
-            <div class="section">
-                <div class="section-title">📍 ข้อมูลลูกค้า</div>
-                <p>${o.address.replace(/ \| /g, '<br>')}</p>
-            </div>
-
-            <div class="section">
-                <div class="section-title">📦 รายการสินค้า</div>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>สินค้า</th>
-                            <th>ตัวเลือก</th>
-                            <th>จำนวน</th>
-                            <th>ราคาต่อชิ้น</th>
-                            <th>ยอดรวม</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${myItems.map(item => {
+                <div class="section">
+                    <div class="section-title">📦 รายการสินค้า</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>สินค้า</th>
+                                <th>จำนวน</th>
+                                <th>ราคา</th>
+                                <th>รวม</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${myItems.map(item => {
         const p = PRODUCTS.find(px => String(px.id) === String(item.id));
         const price = item.price || p?.price || 0;
         return `
-                                <tr>
-                                    <td>${p?.name || 'Unknown Item'}</td>
-                                    <td>${item.variant || '-'}</td>
-                                    <td>${item.qty}</td>
-                                    <td>฿${price.toLocaleString()}</td>
-                                    <td>฿${(price * item.qty).toLocaleString()}</td>
-                                </tr>
-                            `;
+                                    <tr>
+                                        <td>${p?.name || 'Unknown Item'}<br><small style="color:#777">${item.variant || '-'}</small></td>
+                                        <td>x${item.qty}</td>
+                                        <td>${price.toLocaleString()}</td>
+                                        <td>${(price * item.qty).toLocaleString()}</td>
+                                    </tr>
+                                `;
     }).join('')}
-                    </tbody>
-                </table>
-            </div>
+                        </tbody>
+                    </table>
+                </div>
 
-            <div class="total-box">
-                <div class="total-row">
-                    <span>ยอดรวมสินค้า:</span>
-                    <span>฿${myGross.toLocaleString()}</span>
+                <div class="total-box">
+                    <div class="total-row"><span>รวมสินค้า:</span> <span>฿${myGross.toLocaleString()}</span></div>
+                    <div class="total-row"><span>ส่วนลด:</span> <span>-฿${(myGross - myNet).toLocaleString()}</span></div>
+                    <div class="total-row"><span>ค่าส่ง:</span> <span>฿${myShipping.toLocaleString()}</span></div>
+                    <div class="total-row grand"><span>ยอดสุทธิ:</span> <span>฿${myTotal.toLocaleString()}</span></div>
                 </div>
-                <div class="total-row">
-                    <span>ส่วนลด:</span>
-                    <span>-฿${(myGross - myNet).toLocaleString()}</span>
-                </div>
-                <div class="total-row">
-                    <span>ค่าจัดส่ง:</span>
-                    <span>฿${myShipping.toLocaleString()}</span>
-                </div>
-                <div class="total-row grand">
-                    <span>ยอดสุทธิ:</span>
-                    <span>฿${myTotal.toLocaleString()}</span>
-                </div>
-            </div>
 
-            <div class="footer">
-                <p>ขอบคุณที่ใช้บริการร้านของเรา</p>
-                <p>พิมพ์เมื่อวันที่ ${new Date().toLocaleString('th-TH')}</p>
-            </div>
+                <div class="shipping-label">
+                    <div class="label-tag">📍 สำหรับจัดส่งพัสดุ (Shipping Label)</div>
+                    <div class="customer-name">ผู้รับ: ${o.address.split(' | ')[0] || 'ไม่ระบุชื่อ'}</div>
+                    <div class="customer-address">ที่อยู่: ${o.address.split(' | ')[1] || 'ไม่ระบุที่อยู่'}</div>
+                </div>
 
-            <div class="no-print" style="margin-top:40px; text-align:center">
-                <button onclick="window.print()" style="padding:15px 40px; background:#1a73e8; color:#fff; border:none; border-radius:8px; cursor:pointer; font-size:16px; font-weight:bold">🖨️ สั่งพิมพ์ใบสั่งซื้อ</button>
+                <div class="footer">
+                    <p>ขอบคุณที่ช้อปกับเรา • พิมพ์เมื่อ ${new Date().toLocaleString('th-TH')}</p>
+                </div>
+
+                <div class="no-print" style="margin-top:25px; text-align:center">
+                    <button onclick="window.print()" style="padding:12px 30px; background:#1a73e8; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:14px; font-weight:bold; width:100%">🖨️ สั่งพิมพ์ใบแปะหน้าพัสดุ</button>
+                    <p style="font-size:10px; color:#666; margin-top:10px">แนะนำ: ตั้งค่าการพิมพ์เป็นขนาด A5 หรือ "Fit to page"</p>
+                </div>
             </div>
         </body>
         </html>
