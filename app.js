@@ -2100,16 +2100,24 @@ async function deleteBanner(id) {
 
 function renderSdOverview(el) {
     const sellerProductIds = sellerProducts.map(p => String(p.id));
-    const myShopName = state.user?.shopName || (state.user ? state.user.name + "'s Shop" : "");
+    // ✅ มาตรฐานชื่อร้าน: ตรวจสอบหลายรูปแบบเพื่อความยืดหยุ่น (Healing System)
+    const myName = state.user?.name || "";
+    const possibleShopNames = [
+        state.user?.shopName,
+        myName + "'s Shop",
+        myName + " Shop"
+    ].filter(Boolean);
 
     // helper: ออเดอร์นี้มีสินค้าของร้านเราไหม?
     function orderBelongsToSeller(order) {
         return order.items.some(item => {
-            // 1. ตรวจจาก sellerProducts ที่เพิ่มเอง
-            if (sellerProductIds.includes(String(item.id))) return true;
-            // 2. fallback: ตรวจจากชื่อร้านในรายการสินค้า PRODUCTS
+            // 1. ตรวจจาก sellerProducts ที่เพิ่มเอง หรือเปรียบเทียบ seller_id
+            const isMineById = sellerProductIds.includes(String(item.id));
+            if (isMineById) return true;
+
+            // 2. fallback: ตรวจจากข้อมูลสินค้าในตลาดกลาง
             const prod = PRODUCTS.find(p => String(p.id) === String(item.id));
-            if (prod && prod.shop === myShopName) return true;
+            if (prod && (possibleShopNames.includes(prod.shop) || prod.seller_id === state.user?.id)) return true;
             return false;
         });
     }
@@ -2137,13 +2145,12 @@ function renderSdOverview(el) {
         const discountRate = orderSubtotal > 0 ? (order.discount || 0) / orderSubtotal : 0;
 
         order.items.forEach(item => {
+            const prod = PRODUCTS.find(p => String(p.id) === String(item.id));
             const isMyProduct = sellerProductIds.includes(String(item.id)) ||
-                (() => {
-                    const prod = PRODUCTS.find(p => String(p.id) === String(item.id));
-                    return prod && prod.shop === myShopName;
-                })();
+                (prod && (possibleShopNames.includes(prod.shop) || prod.seller_id === state.user?.id));
+
             if (isMyProduct) {
-                const basePrice = item.price || (PRODUCTS.find(p => String(p.id) === String(item.id))?.price || 0);
+                const basePrice = item.price || (prod?.price || 0);
                 const itemGross = basePrice * item.qty;
                 const itemNet = itemGross * (1 - discountRate);
                 totalRevenue += itemNet;
@@ -2626,12 +2633,17 @@ async function deleteProduct(id) {
 function renderSdOrders(el) {
     // แปลง IDs เป็น string ทั้งหมดเพื่อให้เปรียบเทียบง่ายขึ้น
     const sellerProductIds = sellerProducts.map(p => String(p.id));
-    const myShopName = state.user?.shopName || (state.user?.name + "'s Shop");
+    const myName = state.user?.name || "";
+    const possibleShopNames = [
+        state.user?.shopName,
+        myName + "'s Shop",
+        myName + " Shop"
+    ].filter(Boolean);
 
     function isMyProduct(itemId) {
         if (sellerProductIds.includes(String(itemId))) return true;
         const prod = PRODUCTS.find(p => String(p.id) === String(itemId));
-        return prod && prod.shop === myShopName;
+        return prod && (possibleShopNames.includes(prod.shop) || prod.seller_id === state.user?.id);
     }
 
     // กรองเฉพาะออเดอร์ที่มีสินค้าของร้านนี้
@@ -2656,17 +2668,17 @@ function renderSdOrders(el) {
                 // คำนวณยอดรวมเฉพาะสินค้าของร้านเราในออเดอร์นี้ (หักส่วนลดตามสัดส่วน)
                 const sellerItems = o.items.filter(item => isMyProduct(item.id));
 
-                // คำนวณ subtotal ทั้งออเดอร์ (ก่อนส่วนลด) เพื่อหาสัดส่วน
+                // คำนวณ subtotal ทั้งออเดอร์ (ใช้ราคา ณ วันที่ซื้อจากใน item)
                 const orderSubtotal = o.items.reduce((s, i) => {
-                    const prod = PRODUCTS.find(x => String(x.id) === String(i.id));
-                    return s + (prod ? prod.price * i.qty : 0);
+                    const price = i.price || (PRODUCTS.find(x => String(x.id) === String(i.id))?.price || 0);
+                    return s + (price * i.qty);
                 }, 0);
                 const discountRate = orderSubtotal > 0 ? (o.discount || 0) / orderSubtotal : 0;
 
-                // คำนวณ gross ของร้านเราเพื่อหาสัดส่วนค่าจัดส่ง
+                // คำนวณ gross ของร้านเรา (ใช้ราคา ณ วันที่ซื้อ)
                 const sellerGross = sellerItems.reduce((sum, item) => {
-                    const product = PRODUCTS.find(p => String(p.id) === String(item.id));
-                    return sum + (product ? product.price * item.qty : 0);
+                    const price = item.price || (PRODUCTS.find(p => String(p.id) === String(item.id))?.price || 0);
+                    return sum + (price * item.qty);
                 }, 0);
 
                 // สัดส่วนที่ร้านเราครอบคลุมในออเดอร์นี้ (0-1)
