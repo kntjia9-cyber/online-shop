@@ -717,7 +717,11 @@ function renderCart() {
         return `<div class="cart-item">
         <div style="font-size:11px;color:var(--text-3)"><input type="checkbox" checked style="width:16px;height:16px"></div>
         <div style="display:flex;gap:12px;align-items:center">
-          <div class="cart-item-img" onclick="viewProduct(${p.id})" style="cursor:pointer">${p.emoji}</div>
+          <div class="cart-item-img" onclick="viewProduct(${p.id})" style="cursor:pointer;overflow:hidden">
+            ${(p.images && p.images[0]) || p.image
+                ? `<img src="${(p.images && p.images[0]) || p.image}" style="width:100%;height:100%;object-fit:cover;border-radius:8px">`
+                : `<span style="font-size:28px">${p.emoji}</span>`}
+          </div>
           <div><div class="product-name" style="max-width:200px;cursor:pointer" onclick="viewProduct(${p.id})">${p.name}</div><div class="cart-item-variant">ตัวเลือก: ${c.variant}</div></div>
         </div>
         <div class="cart-item-price">฿${formatNum(price)}</div>
@@ -1115,7 +1119,9 @@ async function renderCheckout() {
       <div class="form-group"><label>เบอร์โทร</label><input id="co-phone" placeholder="08X-XXX-XXXX" value="${state.user?.phone || ''}" /></div>
       <div class="form-group"><label>ที่อยู่</label><textarea id="co-addr" rows="3" placeholder="บ้านเลขที่ ถนน แขวง เขต">${state.user?.address || ''}</textarea></div>
       <div class="form-row">
-        <div class="form-group"><label>จังหวัด</label><select id="co-province"><option>กรุงเทพมหานคร</option><option>เชียงใหม่</option><option>ภูเก็ต</option><option>ขอนแก่น</option><option>นครราชสีมา</option><option>สงขลา</option></select></div>
+        <div class="form-group"><label>จังหวัด</label><select id="co-province" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;background:var(--bg-2)">
+          ${['กรุงเทพมหานคร', 'เชียงใหม่', 'เชียงราย', 'ลำปาง', 'ลำพูน', 'แม่ฮ่องสอน', 'น่าน', 'พะเยา', 'แพร่', 'อุตรดิตถ์', 'ตาก', 'สุโขทัย', 'พิษณุโลก', 'เพชรบูรณ์', 'พิจิตร', 'กำแพงเพชร', 'นครสวรรค์', 'อุทัยธานี', 'ชัยนาท', 'สิงห์บุรี', 'อ่างทอง', 'พระนครศรีอยุธยา', 'สระบุรี', 'ลพบุรี', 'นครนายก', 'ปทุมธานี', 'นนทบุรี', 'นครปฐม', 'สมุทรสาคร', 'สมุทรสงคราม', 'สมุทรปราการ', 'กาญจนบุรี', 'ราชบุรี', 'เพชรบุรี', 'ประจวบคีรีขันธ์', 'สุพรรณบุรี', 'ชลบุรี', 'ระยอง', 'จันทบุรี', 'ตราด', 'ฉะเชิงเทรา', 'ปราจีนบุรี', 'สระแก้ว', 'นครราชสีมา', 'บุรีรัมย์', 'สุรินทร์', 'ศรีสะเกษ', 'อุบลราชธานี', 'ยโสธร', 'อำนาจเจริญ', 'มุกดาหาร', 'ร้อยเอ็ด', 'ขอนแก่น', 'กาฬสินธุ์', 'มหาสารคาม', 'สกลนคร', 'นครพนม', 'หนองคาย', 'บึงกาฬ', 'หนองบัวลำภู', 'อุดรธานี', 'เลย', 'ชุมพร', 'ระนอง', 'สุราษฎร์ธานี', 'นครศรีธรรมราช', 'กระบี่', 'พังงา', 'ภูเก็ต', 'ตรัง', 'พัทลุง', 'สตูล', 'สงขลา', 'ปัตตานี', 'ยะลา', 'นราธิวาส'].map(p => `<option value="${p}" ${(state.user?.province || '') === p ? 'selected' : ''}>${p}</option>`).join('')}
+        </select></div>
         <div class="form-group"><label>รหัสไปรษณีย์</label><input id="co-zip" placeholder="10XXX" value="${state.user?.zip || ''}" /></div>
       </div>
     </div>
